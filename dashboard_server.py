@@ -5,6 +5,9 @@ Embedded Async Web Server (aiohttp)
 """
 
 import asyncio
+import gzip
+import hashlib
+import mimetypes
 import os
 import re
 import time
@@ -143,6 +146,51 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 SESSION_COOKIE = "lvl_session"
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,24}$")
 SYNC_INTERVAL = 15
+USER_PATHS = ("/api/", "/panel", "/admin", "/login", "/register", "/logout")
+
+
+# ==================== STATIC ASSETS (in memory, gzipped, browser-cached) ====================
+
+class Assets:
+    """Serves /static from memory with gzip + long cache headers; HTML gets ?v=<hash> links."""
+
+    def __init__(self):
+        self.files: Dict[str, Dict[str, Any]] = {}
+        self.pages: Dict[str, str] = {}
+        self.version = "0"
+
+    def load(self):
+        digest = hashlib.sha1()
+        for root, _, names in os.walk(STATIC_DIR):
+            for name in sorted(names):
+                full = os.path.join(root, name)
+                rel = os.path.relpath(full, STATIC_DIR).replace(os.sep, "/")
+                with open(full, "rb") as f:
+                    raw = f.read()
+                digest.update(rel.encode() + raw)
+                ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+                text = ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "image/svg+xml")
+                self.files[rel] = {"type": ctype, "raw": raw, "gz": gzip.compress(raw, 6) if text and len(raw) > 1024 else None}
+        self.version = digest.hexdigest()[:10]
+        for name in os.listdir(TEMPLATE_DIR):
+            if name.endswith(".html"):
+                with open(os.path.join(TEMPLATE_DIR, name), "r", encoding="utf-8") as f:
+                    html = f.read()
+                self.pages[name[:-5]] = re.sub(r'(/static/[^"\'?#\s]+)', rf"\1?v={self.version}", html)
+
+    async def handle(self, request: web.Request) -> web.StreamResponse:
+        f = self.files.get(request.match_info["path"])
+        if not f:
+            raise web.HTTPNotFound()
+        cache = "public, max-age=31536000, immutable" if request.query.get("v") else "public, max-age=300"
+        headers = {"Cache-Control": cache, "Vary": "Accept-Encoding"}
+        if f["gz"] and "gzip" in request.headers.get("Accept-Encoding", ""):
+            headers["Content-Encoding"] = "gzip"
+            return web.Response(body=f["gz"], content_type=f["type"], headers=headers)
+        return web.Response(body=f["raw"], content_type=f["type"], headers=headers)
+
+
+assets = Assets()
 
 _login_failures: Dict[str, List[float]] = {}
 
@@ -323,10 +371,10 @@ async def remove_account(row: Dict[str, Any]):
 @web.middleware
 async def panel_middleware(request: web.Request, handler):
     request["user"] = None
-    token = request.cookies.get(SESSION_COOKIE)
-    if token:
-        request["user"] = await db.session_user(token)
     path = request.path
+    token = request.cookies.get(SESSION_COOKIE)
+    if token and path.startswith(USER_PATHS):
+        request["user"] = await db.session_user(token)
     try:
         if path.startswith("/api/"):
             # JSON-only POSTs: blocks cross-site form submissions (CSRF) without a token.
@@ -340,7 +388,12 @@ async def panel_middleware(request: web.Request, handler):
                     raise PanelError("Your account has been suspended. Contact support.", 403)
                 if path.startswith("/api/admin/") and user["role"] != "admin":
                     raise PanelError("Admins only", 403)
-        return await handler(request)
+        resp = await handler(request)
+        if (isinstance(resp, web.Response) and "Content-Encoding" not in resp.headers
+                and resp.body is not None and len(resp.body) > 1024
+                and "gzip" in request.headers.get("Accept-Encoding", "")):
+            resp.enable_compression(web.ContentCoding.gzip)
+        return resp
     except PanelError as e:
         return web.json_response({"ok": False, "error": str(e)}, status=e.status)
     except web.HTTPException:
@@ -363,10 +416,7 @@ def page(name: str):
             raise web.HTTPFound("/panel")
         if name == "auth" and user:
             raise web.HTTPFound("/admin" if user["role"] == "admin" else "/panel")
-        path = os.path.join(TEMPLATE_DIR, f"{name}.html")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return web.Response(text=content, content_type="text/html", charset="utf-8",
+        return web.Response(text=assets.pages[name], content_type="text/html", charset="utf-8",
                             headers={"Cache-Control": "no-store"})
     return handler
 
@@ -384,7 +434,8 @@ async def handle_logout_page(request: web.Request) -> web.Response:
 
 async def api_public_info(request: web.Request) -> web.Response:
     # Public: branding + plans only. Bot-wide stats are never exposed; users see their own in /api/panel.
-    return ok(settings=await db.settings(), plans=await db.list_plans(active_only=True))
+    settings, plans = await asyncio.gather(db.settings(), db.list_plans(active_only=True))
+    return ok(settings=settings, plans=plans)
 
 
 async def _set_session(request: web.Request, resp: web.Response, user_id: int):
@@ -451,10 +502,11 @@ async def api_me(request: web.Request) -> web.Response:
 
 async def api_panel_overview(request: web.Request) -> web.Response:
     user = request["user"]
-    views = [account_view(r) for r in await db.list_accounts(user["id"])]
+    rows, pub = await asyncio.gather(db.list_accounts(user["id"]), public_user(user))
+    views = [account_view(r) for r in rows]
     game_ids = {v["game_id"] for v in views if v["game_id"]}
     logs = [l for l in bot_state.logs if l.get("uid") in game_ids][-40:]
-    return ok(now=time.time(), user=await public_user(user), accounts=views, totals=totals_of(views), logs=logs)
+    return ok(now=time.time(), user=pub, accounts=views, totals=totals_of(views), logs=logs)
 
 
 async def api_panel_add_account(request: web.Request) -> web.Response:
@@ -556,10 +608,11 @@ async def api_panel_password(request: web.Request) -> web.Response:
 # ==================== ADMIN API ====================
 
 async def api_admin_overview(request: web.Request) -> web.Response:
-    views = [account_view(r) for r in await db.list_accounts()]
-    return ok(now=time.time(), stats=await db.admin_stats(), totals=totals_of(views),
-              uptime=int(time.time() - bot_state.start_time),
-              pending=(await db.list_orders(status="pending", limit=8)), logs=bot_state.logs[-80:])
+    rows, stats, pending = await asyncio.gather(
+        db.list_accounts(), db.admin_stats(), db.list_orders(status="pending", limit=8))
+    views = [account_view(r) for r in rows]
+    return ok(now=time.time(), stats=stats, totals=totals_of(views),
+              uptime=int(time.time() - bot_state.start_time), pending=pending, logs=bot_state.logs[-80:])
 
 
 async def api_admin_users(request: web.Request) -> web.Response:
@@ -789,7 +842,8 @@ async def start_web_dashboard(host: str = "0.0.0.0", port: int = 5000,
     r.add_get("/admin", page("admin"))
     r.add_get("/admin/{tail:.+}", page("admin"))
     r.add_get("/logout", handle_logout_page)
-    r.add_static("/static/", STATIC_DIR, append_version=False)
+    assets.load()
+    r.add_get("/static/{path:.+}", assets.handle)
 
     r.add_get("/api/public/info", api_public_info)
     r.add_post("/api/auth/login", api_login)

@@ -29,6 +29,8 @@ LEGACY_DEVICES_FILE = os.path.join(BASE_DIR, "devices.json")
 LEGACY_TOKEN_CACHE_FILE = os.path.join(BASE_DIR, "token_cache.json")
 
 PBKDF2_ROUNDS = 150_000
+USER_CACHE_TTL = 30
+SESSION_CACHE_TTL = 60
 SESSION_TTL = 7 * 24 * 3600
 KEY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
 
@@ -142,7 +144,7 @@ def _out(doc: Optional[Dict[str, Any]], key: str = "id") -> Optional[Dict[str, A
 
 class PanelDB:
     def __init__(self, uri: str, db_name: str = "fflevel"):
-        self.client = AsyncMongoClient(uri, serverSelectionTimeoutMS=10000, appname="ff-level-panel")
+        self.client = AsyncMongoClient(uri, serverSelectionTimeoutMS=10000, minPoolSize=4, appname="ff-level-panel")
         self.db = self.client[db_name]
         self.levels: Dict[int, Dict[str, Any]] = {}
         self._bg: set = set()
@@ -150,6 +152,13 @@ class PanelDB:
         self.bot_devices: Dict[str, Dict[str, Any]] = {}
         self.bot_tokens: Dict[str, Dict[str, Any]] = {}
         self.bot_store_ready = False
+        # Read caches. This process is the only writer, so every write below also invalidates them;
+        # the TTLs are just a safety net.
+        self._settings_cache: Optional[Dict[str, Any]] = None
+        self._plans_cache: Dict[bool, List[Dict[str, Any]]] = {}
+        self._user_cache: Dict[int, Tuple[float, Dict[str, Any]]] = {}
+        self._session_cache: Dict[str, Tuple[float, int, float]] = {}  # token -> (cached_at, user_id, expires_at)
+        self._count_cache: Dict[int, int] = {}
 
     # ---------- setup ----------
     async def init(self):
@@ -189,6 +198,7 @@ class PanelDB:
                     "max_accounts": slots, "features": feats, "is_popular": popular, "is_active": 1,
                     "sort_order": sort, "created_at": now})
             await self.set_setting("plans_seeded", "1")
+            self._plans_cache.clear()
 
     def _spawn(self, coro):
         """Fire-and-forget a DB write from sync code (keeps a reference so it isn't GC'd)."""
@@ -291,8 +301,11 @@ class PanelDB:
 
     async def set_setting(self, key: str, value: str):
         await self.db.settings.update_one({"_id": key}, {"$set": {"value": value}}, upsert=True)
+        self._settings_cache = None
 
     async def settings(self) -> Dict[str, Any]:
+        if self._settings_cache is not None:
+            return json.loads(json.dumps(self._settings_cache))
         data = {doc["_id"]: doc["value"] async for doc in self.db.settings.find({"_id": {"$in": list(PUBLIC_SETTINGS)}})}
         out: Dict[str, Any] = {k: data.get(k, DEFAULT_SETTINGS.get(k, "")) for k in PUBLIC_SETTINGS}
         try:
@@ -300,7 +313,8 @@ class PanelDB:
         except Exception:
             out["payment_methods"] = []
         out["allow_register"] = out["allow_register"] == "1"
-        return out
+        self._settings_cache = out
+        return json.loads(json.dumps(out))
 
     async def save_settings(self, data: Dict[str, Any]):
         for key in PUBLIC_SETTINGS:
@@ -324,9 +338,11 @@ class PanelDB:
 
     # ---------- plans ----------
     async def list_plans(self, active_only: bool = False) -> List[Dict[str, Any]]:
-        q = {"is_active": 1} if active_only else {}
-        cur = self.db.plans.find(q).sort([("sort_order", ASCENDING), ("price", ASCENDING)])
-        return [_out(d) async for d in cur]
+        if active_only not in self._plans_cache:
+            q = {"is_active": 1} if active_only else {}
+            cur = self.db.plans.find(q).sort([("sort_order", ASCENDING), ("price", ASCENDING)])
+            self._plans_cache[active_only] = [_out(d) async for d in cur]
+        return [dict(p) for p in self._plans_cache[active_only]]
 
     async def get_plan(self, plan_id: int) -> Optional[Dict[str, Any]]:
         return _out(await self.db.plans.find_one({"_id": plan_id}))
@@ -348,6 +364,7 @@ class PanelDB:
         fields = {"name": name, "price": price, "duration_hours": hours, "max_accounts": slots, "features": feats,
                   "is_popular": 1 if data.get("is_popular") else 0, "is_active": 1 if data.get("is_active", True) else 0,
                   "sort_order": sort}
+        self._plans_cache.clear()
         if data.get("id"):
             plan_id = int(data["id"])
             await self.db.plans.update_one({"_id": plan_id}, {"$set": fields})
@@ -358,10 +375,17 @@ class PanelDB:
 
     async def delete_plan(self, plan_id: int):
         await self.db.plans.delete_one({"_id": plan_id})
+        self._plans_cache.clear()
 
     # ---------- users ----------
     async def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
-        return _out(await self.db.users.find_one({"_id": user_id}))
+        hit = self._user_cache.get(user_id)
+        if hit and time.time() - hit[0] < USER_CACHE_TTL:
+            return dict(hit[1])
+        u = _out(await self.db.users.find_one({"_id": user_id}))
+        if u:
+            self._user_cache[user_id] = (time.time(), u)
+        return dict(u) if u else None
 
     async def get_user_by_name(self, username: str) -> Optional[Dict[str, Any]]:
         return _out(await self.db.users.find_one({"username_lc": username.lower()}))
@@ -393,6 +417,7 @@ class PanelDB:
         sets = {k: v for k, v in fields.items() if k in allowed}
         if sets:
             await self.db.users.update_one({"_id": user_id}, {"$set": sets})
+            self._user_cache.pop(user_id, None)
 
     async def delete_user(self, user_id: int):
         await self.db.accounts.delete_many({"user_id": user_id})
@@ -400,6 +425,9 @@ class PanelDB:
         await self.db.sessions.delete_many({"user_id": user_id})
         await self.db.license_keys.update_many({"redeemed_by": user_id}, {"$set": {"redeemed_by": None}})
         await self.db.users.delete_one({"_id": user_id})
+        self._user_cache.pop(user_id, None)
+        self._count_cache.pop(user_id, None)
+        self._drop_sessions_of(user_id)
 
     async def grant(self, user_id: int, hours: int, max_accounts: int, plan_name: str):
         """Extend access (stacks on remaining time) and set the account-slot limit."""
@@ -441,17 +469,34 @@ class PanelDB:
         return token
 
     async def session_user(self, token: str) -> Optional[Dict[str, Any]]:
-        s = await self.db.sessions.find_one({"_id": token, "expires_at": {"$gt": time.time()}})
-        return await self.get_user(s["user_id"]) if s else None
+        now = time.time()
+        hit = self._session_cache.get(token)
+        if hit and now - hit[0] < SESSION_CACHE_TTL:
+            return await self.get_user(hit[1]) if hit[2] > now else None
+        s = await self.db.sessions.find_one({"_id": token, "expires_at": {"$gt": now}})
+        if not s:
+            self._session_cache.pop(token, None)
+            return None
+        if len(self._session_cache) > 5000:
+            self._session_cache.clear()
+        self._session_cache[token] = (now, s["user_id"], s["expires_at"])
+        return await self.get_user(s["user_id"])
+
+    def _drop_sessions_of(self, user_id: int, keep: Optional[str] = None):
+        for tok, (_, uid, _) in list(self._session_cache.items()):
+            if uid == user_id and tok != keep:
+                self._session_cache.pop(tok, None)
 
     async def delete_session(self, token: str):
         await self.db.sessions.delete_one({"_id": token})
+        self._session_cache.pop(token, None)
 
     async def delete_user_sessions(self, user_id: int, keep: Optional[str] = None):
         q: Dict[str, Any] = {"user_id": user_id}
         if keep:
             q["_id"] = {"$ne": keep}
         await self.db.sessions.delete_many(q)
+        self._drop_sessions_of(user_id, keep)
 
     async def purge_sessions(self):
         await self.db.sessions.delete_many({"expires_at": {"$lt": time.time()}})
@@ -470,7 +515,9 @@ class PanelDB:
         return _out(await self.db.accounts.find_one({"_id": account_id}))
 
     async def count_accounts(self, user_id: int) -> int:
-        return await self.db.accounts.count_documents({"user_id": user_id})
+        if user_id not in self._count_cache:
+            self._count_cache[user_id] = await self.db.accounts.count_documents({"user_id": user_id})
+        return self._count_cache[user_id]
 
     async def add_account(self, user_id: int, kind: str, login: str, password: str = "") -> int:
         if await self.db.accounts.find_one({"kind": kind, "login": login}, {"_id": 1}):
@@ -482,10 +529,12 @@ class PanelDB:
                 "game_id": None, "nickname": None, "created_at": time.time()})
         except DuplicateKeyError:
             raise PanelError("This account is already added to the bot")
+        self._count_cache.pop(user_id, None)
         return account_id
 
     async def delete_account(self, account_id: int):
         await self.db.accounts.delete_one({"_id": account_id})
+        self._count_cache.clear()
 
     async def set_account_game(self, account_id: int, game_id: str, nickname: Optional[str]):
         sets: Dict[str, Any] = {"game_id": game_id}
@@ -674,13 +723,15 @@ class PanelDB:
                 return doc["n"] or 0
             return 0
 
-        return {
-            "users": await d.users.count_documents({"role": {"$ne": "admin"}}),
-            "active_users": await d.users.count_documents(
+        keys = ("users", "active_users", "pending_orders", "revenue_total", "revenue_month", "accounts", "unused_keys")
+        values = await asyncio.gather(
+            d.users.count_documents({"role": {"$ne": "admin"}}),
+            d.users.count_documents(
                 {"role": {"$ne": "admin"}, "is_banned": {"$in": [0, False, None]}, "expires_at": {"$gt": now}}),
-            "pending_orders": await d.orders.count_documents({"status": "pending"}),
-            "revenue_total": await revenue(),
-            "revenue_month": await revenue(month_start),
-            "accounts": await d.accounts.count_documents({}),
-            "unused_keys": await d.license_keys.count_documents({"redeemed_at": None}),
-        }
+            d.orders.count_documents({"status": "pending"}),
+            revenue(),
+            revenue(month_start),
+            d.accounts.count_documents({}),
+            d.license_keys.count_documents({"redeemed_at": None}),
+        )
+        return dict(zip(keys, values))
