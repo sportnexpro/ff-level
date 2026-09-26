@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ff-level
+    runtime: python
+    plan: starter            # always-on; the free plan sleeps when idle and would stop the bot
+    buildCommand: pip install -r requirements.txt
+    startCommand: python Main.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      - key: MONGO_URI       # your MongoDB Atlas connection string — set it in the Render dashboard
+        sync: false
+      - key: MONGO_DB
+        value: fflevel

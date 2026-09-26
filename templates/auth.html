@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c10">
+  <title>Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <style>
+    body { display: grid; min-height: 100vh; place-items: center; padding: 32px 16px; position: relative; overflow-x: hidden; }
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(600px 360px at 50% -80px, rgba(255, 51, 102, 0.22), transparent 70%),
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 48px 48px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 80%);
+    }
+    .auth { width: min(420px, 100%); display: grid; gap: 22px; }
+    .auth-brand { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
+    .auth-brand .brand-mark { width: 38px; height: 38px; font-size: 16px; border-radius: 11px; }
+    .auth-card { padding: 30px 28px; display: grid; gap: 22px; border-radius: 18px; box-shadow: var(--shadow-lg); }
+    .auth-head { text-align: center; }
+    .auth-head h1 { font-size: 24px; font-weight: 800; }
+    .auth-head p { color: var(--text-2); font-size: 14.5px; margin-top: 6px; }
+    .auth-card .segmented { width: 100%; }
+    .auth-card .segmented button { flex: 1; }
+    .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+    .auth-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; color: var(--text-3); flex-wrap: wrap; }
+    .auth-foot a { color: var(--text-2); font-weight: 600; }
+    .auth-foot a:hover { color: var(--text); }
+    .live { display: inline-flex; align-items: center; gap: 8px; }
+    .live .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(47, 208, 122, 0.2); }
+  </style>
+</head>
+<body>
+  <main class="auth">
+    <a class="auth-brand" href="/"><span class="brand-mark"><i class="fa-solid fa-fire" aria-hidden="true"></i></span><span data-site-name>FF Level</span></a>
+
+    <div class="card auth-card">
+      <div class="auth-head">
+        <h1 id="auth-title">Welcome back</h1>
+        <p id="auth-sub">Sign in to your dashboard</p>
+      </div>
+      <div class="segmented" role="group" aria-label="Sign in or register" id="auth-tabs">
+        <button type="button" data-mode="login" aria-pressed="true">Sign in</button>
+        <button type="button" data-mode="register" aria-pressed="false">Create account</button>
+      </div>
+      <form id="auth-form" class="form-grid" novalidate>
+        <div class="field">
+          <label for="a-user">Username</label>
+          <div class="input-group"><i class="fa-regular fa-user" aria-hidden="true"></i>
+            <input class="input" id="a-user" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="your_username" required></div>
+        </div>
+        <div class="field">
+          <label for="a-pass">Password</label>
+          <div class="input-group"><i class="fa-solid fa-lock" aria-hidden="true"></i>
+            <input class="input" id="a-pass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required style="padding-right:48px">
+            <button type="button" class="copy-btn pw-toggle" id="pw-toggle" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button></div>
+          <span class="hint" id="pw-hint" hidden>At least 6 characters.</span>
+        </div>
+        <p class="form-error" id="auth-err" role="alert"></p>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="auth-submit">Sign in</button>
+      </form>
+      <p class="faint" id="closed-note" hidden style="font-size:13.5px;text-align:center">New accounts are created by the seller. Contact support to get access.</p>
+    </div>
+
+    <div class="auth-foot">
+      <a href="/"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to home</a>
+      <span class="live"><i class="fa-solid fa-shield-halved" aria-hidden="true" style="color:var(--success)"></i><span>Private — only you see your accounts</span></span>
+    </div>
+  </main>
+
+  <script src="/static/js/core.js"></script>
+  <script>
+    (() => {
+      const { $, $$, api, withLoading } = LV;
+      let mode = location.pathname === '/register' ? 'register' : 'login';
+      const copy = {
+        login: ['Welcome back', 'Sign in to your dashboard', 'Sign in'],
+        register: ['Create your account', 'Takes 10 seconds — pick a plan right after', 'Create account'],
+      };
+      const setMode = (m) => {
+        mode = m;
+        $$('#auth-tabs [data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+        $('#auth-title').textContent = copy[m][0];
+        $('#auth-sub').textContent = copy[m][1];
+        $('#auth-submit').textContent = copy[m][2];
+        $('#a-pass').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+        $('#pw-hint').hidden = m === 'login';
+        $('#auth-err').textContent = '';
+        history.replaceState(null, '', m === 'login' ? '/login' : '/register');
+      };
+      $$('#auth-tabs [data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+      $('#pw-toggle').addEventListener('click', (e) => {
+        const input = $('#a-pass');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        e.currentTarget.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        e.currentTarget.innerHTML = `<i class="fa-regular ${show ? 'fa-eye-slash' : 'fa-eye'}" aria-hidden="true"></i>`;
+      });
+      $('#auth-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = $('#a-user').value.trim();
+        const password = $('#a-pass').value;
+        const err = $('#auth-err');
+        err.textContent = '';
+        if (!username || !password) { err.textContent = 'Enter your username and password.'; return; }
+        if (mode === 'register' && !/^[A-Za-z0-9_.]{3,24}$/.test(username)) { err.textContent = 'Username: 3–24 characters, letters, numbers, _ or .'; return; }
+        if (mode === 'register' && password.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+        await withLoading($('#auth-submit'), async () => {
+          try {
+            const r = await api(`/api/auth/${mode}`, { username, password });
+            location.href = mode === 'register' ? '/panel/billing' : r.redirect;
+          } catch (ex) { err.textContent = ex.message; }
+        });
+      });
+      setMode(mode);
+      $('#a-user').focus();
+      api('/api/public/info').then(({ settings }) => {
+        document.title = `${mode === 'login' ? 'Sign in' : 'Create account'} · ${settings.site_name}`;
+        $$('[data-site-name]').forEach((el) => { el.textContent = settings.site_name; });
+        if (!settings.allow_register) {
+          $('#auth-tabs').hidden = true;
+          $('#closed-note').hidden = false;
+          if (mode === 'register') setMode('login');
+        }
+      }).catch(() => {});
+    })();
+  </script>
+</body>
+</html>

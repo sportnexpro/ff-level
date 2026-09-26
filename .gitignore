@@ -1,0 +1,18 @@
+# Secrets — never commit (database password, game logins, tokens)
+.env
+.env.*
+accounts.json
+token_cache.json
+token_cache.json.tmp
+devices.json
+ADMIN_LOGIN.txt
+
+# Old local SQLite database (data now lives in MongoDB)
+panel.db
+panel.db-*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
