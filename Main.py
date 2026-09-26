@@ -285,6 +285,8 @@ CRC7_TABLE = bytes([
 
 _DELTA = 0x9E3779B9
 _ROUNDS = 16
+_TEA_SUMS = tuple((_DELTA * i) & 0xFFFFFFFF for i in range(1, _ROUNDS + 1))  # round sums, precomputed
+_TEA_SUMS_REV = _TEA_SUMS[::-1]
 _FIELD_SIZES = {0: 1, 1: 2, 2: 2, 3: 1, 4: 2}
 _FIELD_NAMES = {0: "sendOption", 1: "cmd", 2: "orderId", 3: "flags", 4: "length"}
 
@@ -843,28 +845,28 @@ async def tea_dec(v0, v1, k0, k1, k2, k3):
         s = (s - _DELTA) & 0xFFFFFFFF
     return v0, v1
 
+def _tea_cbc_encrypt_sync(padded, key_bytes):
+    # Same output as the original byte-wise version, but works on 32-bit words (several times faster).
+    k0, k1, k2, k3 = struct.unpack_from("<4I", key_bytes)
+    n = len(padded) // 8
+    words = struct.unpack(f"<{2 * n}I", padded[:n * 8])
+    out = [0] * (2 * n)
+    M, sums = 0xFFFFFFFF, _TEA_SUMS
+    pc0 = pc1 = pi0 = pi1 = 0          # previous cipher block / previous xored plaintext
+    for b in range(n):
+        x0 = words[2 * b] ^ pc0
+        x1 = words[2 * b + 1] ^ pc1
+        v0, v1 = x0, x1
+        for s in sums:
+            v0 = (v0 + ((((v1 << 4) + k0) ^ (v1 + s) ^ ((v1 >> 5) + k1)) & M)) & M
+            v1 = (v1 + ((((v0 << 4) + k2) ^ (v0 + s) ^ ((v0 >> 5) + k3)) & M)) & M
+        pc0 = out[2 * b] = v0 ^ pi0
+        pc1 = out[2 * b + 1] = v1 ^ pi1
+        pi0, pi1 = x0, x1
+    return struct.pack(f"<{2 * n}I", *out) + bytes(padded[n * 8:])
+
 async def tea_cbc_encrypt(padded, key_bytes):
-    k0, k1, k2, k3 = (struct.unpack_from("<I", key_bytes, o)[0] for o in (0, 4, 8, 12))
-    out = bytearray(len(padded))
-    prev_cipher = bytearray(8)
-    prev_intermediate = bytearray(8)
-    for i in range(0, len(padded), 8):
-        xored = bytearray(8)
-        for j in range(8):
-            xored[j] = padded[i + j] ^ prev_cipher[j]
-        e0, e1 = await tea_enc(
-            struct.unpack_from("<I", xored, 0)[0],
-            struct.unpack_from("<I", xored, 4)[0],
-            k0, k1, k2, k3,
-        )
-        enc = bytearray(8)
-        struct.pack_into("<I", enc, 0, e0)
-        struct.pack_into("<I", enc, 4, e1)
-        for j in range(8):
-            out[i + j] = enc[j] ^ prev_intermediate[j]
-        prev_cipher[:] = out[i:i + 8]
-        prev_intermediate[:] = xored
-    return bytes(out)
+    return _tea_cbc_encrypt_sync(padded, key_bytes)
 
 async def build_padded(content):
     pad_len = (8 - (len(content) + 10) % 8) % 8
@@ -882,11 +884,14 @@ async def encode_header(layout, send_option, cmd, order_id, flags, length, k, v8
             out.append((v >> 8) & 0xFF)
     return bytes(out)
 
-async def crc7_buff(crc, buf):
-    c = crc & 0x7F
+def _crc7_sync(crc, buf):
+    c, table = crc & 0x7F, CRC7_TABLE
     for b in buf:
-        c = CRC7_TABLE[((2 * (c & 0xFF)) ^ (b & 0xFF)) & 0xFF] & 0x7F
-    return c & 0x7F
+        c = table[((c << 1) ^ b) & 0xFF] & 0x7F
+    return c
+
+async def crc7_buff(crc, buf):
+    return _crc7_sync(crc, buf)
 
 async def sv_frame(msg_key, layout, send_option, cmd, order_id, flags, content, key, encrypted=True):
     k = key[0]
@@ -959,28 +964,27 @@ async def parse_layout(layout):
         return [int(ch) for ch in layout.strip()]
     return list(layout)
 
+def _tea_cbc_decrypt_sync(body, key_bytes):
+    # Same output as the original byte-wise version, but works on 32-bit words (several times faster).
+    k0, k1, k2, k3 = struct.unpack_from("<4I", key_bytes)
+    n = len(body) // 8
+    words = struct.unpack(f"<{2 * n}I", body[:n * 8])
+    out = [0] * (2 * n)
+    M, sums = 0xFFFFFFFF, _TEA_SUMS_REV
+    pi0 = pi1 = pc0 = pc1 = 0          # previous decrypted intermediate / previous cipher block
+    for b in range(n):
+        c0, c1 = words[2 * b], words[2 * b + 1]
+        v0, v1 = c0 ^ pi0, c1 ^ pi1
+        for s in sums:
+            v1 = (v1 - ((((v0 << 4) + k2) ^ (v0 + s) ^ ((v0 >> 5) + k3)) & M)) & M
+            v0 = (v0 - ((((v1 << 4) + k0) ^ (v1 + s) ^ ((v1 >> 5) + k1)) & M)) & M
+        out[2 * b] = v0 ^ pc0
+        out[2 * b + 1] = v1 ^ pc1
+        pi0, pi1, pc0, pc1 = v0, v1, c0, c1
+    return struct.pack(f"<{2 * n}I", *out) + bytes(n * 8 < len(body) and len(body) - n * 8 or 0)
+
 async def tea_cbc_decrypt(body, key_bytes):
-    k0, k1, k2, k3 = (struct.unpack_from("<I", key_bytes, o)[0] for o in (0, 4, 8, 12))
-    out = bytearray(len(body))
-    prev_intermediate = bytearray(8)
-    prev_cipher = bytearray(8)
-    xored = bytearray(8)
-    dec = bytearray(8)
-    for i in range(0, len(body), 8):
-        for j in range(8):
-            xored[j] = body[i + j] ^ prev_intermediate[j]
-        d0, d1 = await tea_dec(
-            struct.unpack_from("<I", xored, 0)[0],
-            struct.unpack_from("<I", xored, 4)[0],
-            k0, k1, k2, k3
-        )
-        struct.pack_into("<I", dec, 0, d0)
-        struct.pack_into("<I", dec, 4, d1)
-        for j in range(8):
-            out[i + j] = dec[j] ^ prev_cipher[j]
-        prev_cipher[:] = body[i:i + 8]
-        prev_intermediate[:] = dec
-    return bytes(out)
+    return _tea_cbc_decrypt_sync(body, key_bytes)
 
 async def build_hello_packet(text, key, layout):
     data = text.encode("utf-8")
