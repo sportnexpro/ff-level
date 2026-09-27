@@ -35,42 +35,53 @@
     return `${secs}s`;
   }
 
-  // Level progress: % to next level, EXP left, EXP/hour and ETA.
+  function levelPct(a) {
+    if (a.max_level) return 100;
+    return a.level_pct === null || a.level_pct === undefined ? null : Math.min(100, Math.max(0, a.level_pct));
+  }
+
+  function etaText(a) {
+    if (!a.running) return 'Paused';
+    return a.eta_seconds ? `about ${dur(a.eta_seconds)} left` : '';
+  }
+
+  // Status as one quiet line: coloured dot + words (+ live match count).
+  function statusLine(a) {
+    const map = {
+      IN_MATCH: ['match', 'In match'], SEARCHING: ['search', 'Finding a match'], ONLINE: ['online', 'Online'],
+      CONNECTING: ['wait', 'Connecting'], STARTING: ['wait', 'Starting'], ERROR: ['error', 'Login error'],
+      OFFLINE: ['off', 'Offline'], PAUSED: ['off', 'Paused'],
+    };
+    const [cls, label] = map[a.status] || ['off', a.status || 'Unknown'];
+    const live = a.running && a.active_matches ? ` · ${a.active_matches} live` : '';
+    return `<span class="st st-${cls}"><i aria-hidden="true"></i>${esc(label)}${live}</span>`;
+  }
+
+  // Slim level bar (dashboard list).
   function levelBlock(a) {
     if (!a.level) {
-      return `<div class="lvl">
-        <div class="lvl-head"><span class="lvl-now">Level —</span></div>
-        <div class="lvl-bar idle${a.running ? ' indeterminate' : ''}"><span></span></div>
-        <div class="lvl-meta"><span>${a.running ? 'Logging in…' : 'Paused'}</span></div></div>`;
+      return `<div class="lvl"><div class="lvl-line"><span class="lvl-now">${a.running ? 'Signing in…' : 'Paused'}</span></div></div>`;
     }
     if (a.max_level) {
-      return `<div class="lvl">
-        <div class="lvl-head"><span class="lvl-now">Level ${a.level}</span><span class="lvl-pct">MAX</span></div>
-        <div class="lvl-bar"><span style="width:100%"></span></div>
-        <div class="lvl-meta"><span>${fmt.num(a.current_exp)} total EXP</span><span class="eta">Max level reached</span></div></div>`;
+      return `<div class="lvl"><div class="lvl-line"><span class="lvl-now">Level ${a.level}</span><span>Max level</span></div>
+        <div class="lvl-bar"><span style="width:100%"></span></div></div>`;
     }
-    const known = a.level_pct !== null && a.level_pct !== undefined;
-    const pct = known ? Math.min(100, Math.max(0, a.level_pct)) : 0;
-    const into = known ? a.current_exp - a.level_start_exp : null;
-    const span = known ? a.level_next_exp - a.level_start_exp : null;
-    let eta;
-    if (!a.running) eta = '<span>Paused</span>';
-    else if (a.eta_seconds) eta = `<span class="eta"><i class="fa-regular fa-clock" aria-hidden="true"></i>~${dur(a.eta_seconds)} to level ${a.next_level}</span>`;
-    else eta = '<span><i class="fa-solid fa-gauge" aria-hidden="true"></i> Measuring speed…</span>';
+    const pct = levelPct(a);
     return `<div class="lvl">
-      <div class="lvl-head">
-        <span class="lvl-now">Level ${a.level}</span>
-        ${known ? `<span class="lvl-pct">${pct.toFixed(1)}%</span>` : ''}
-        <span class="lvl-next">Level ${a.next_level}</span>
-      </div>
-      <div class="lvl-bar${known ? '' : ' idle indeterminate'}" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to level ${a.next_level}">
-        <span style="width:${known ? Math.max(1.5, pct) : 0}%"></span>
-        <i style="left:25%"></i><i style="left:50%"></i><i style="left:75%"></i>
-      </div>
-      <div class="lvl-meta">
-        <span>${known ? `<b>${fmt.num(into)}</b> / ${fmt.num(span)} EXP` : `${fmt.num(a.current_exp)} total EXP`}${a.exp_to_next ? ` · <b>${fmt.num(a.exp_to_next)}</b> to go` : ''}</span>
-        ${eta}
-      </div>
+      <div class="lvl-line"><span class="lvl-now">Level ${a.level}</span><span>${pct !== null ? `${Math.floor(pct)}% to level ${a.next_level}` : `Next: level ${a.next_level}`}</span></div>
+      <div class="lvl-bar" role="progressbar" aria-valuenow="${Math.round(pct || 0)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to level ${a.next_level}"><span style="width:${pct || 0}%"></span></div>
+      <div class="lvl-meta"><span>${a.exp_to_next ? `${fmt.num(a.exp_to_next)} EXP to go` : `${fmt.num(a.current_exp)} EXP`}</span><span>${etaText(a)}</span></div>
+    </div>`;
+  }
+
+  // Level ring (account cards): the level number inside, progress to the next level around it.
+  function levelRing(a) {
+    const pct = levelPct(a) || 0;
+    const R = 34, C = 2 * Math.PI * R;
+    const label = a.level ? `Level ${a.level}${levelPct(a) !== null ? `, ${Math.floor(pct)}% to level ${a.next_level}` : ''}` : 'Level unknown';
+    return `<div class="ring" role="img" aria-label="${label}">
+      <svg viewBox="0 0 80 80" aria-hidden="true"><circle class="ring-track" cx="40" cy="40" r="${R}"/>${pct ? `<circle class="ring-fill" cx="40" cy="40" r="${R}" stroke-dasharray="${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}"/>` : ''}</svg>
+      <div class="ring-in"><b>${a.level ?? '–'}</b><small>level</small></div>
     </div>`;
   }
 
@@ -198,7 +209,7 @@
   }
 
   function liveNum(n) {
-    return `<span class="live-num${n ? ' on' : ''}">${n ? '<span class="live-dot" aria-hidden="true"></span>' : ''}${fmt.num(n)}</span>`;
+    return `<span class="live-num${n ? ' on' : ''}">${fmt.num(n)}</span>`;
   }
 
   function statsHTML(t) {
@@ -225,12 +236,11 @@
       return `<div class="acc-item">
         ${avatar(name)}
         <div class="who">
-          <div class="row1"><b>${esc(a.nickname || 'Logging in…')}</b>${statusBadge(a.status)}</div>
-          <div class="row2"><span class="mono">${esc(a.game_id || a.login)}</span>${a.running && a.running_seconds ? `<span class="run"><i class="fa-solid fa-circle-play" aria-hidden="true"></i> Running ${dur(a.running_seconds)}</span>` : ''}</div>
+          <div class="row1"><b>${esc(a.nickname || 'Signing in…')}</b>${statusLine(a)}</div>
+          <div class="row2"><span class="mono">${esc(a.game_id || a.login)}</span>${a.running && a.running_seconds ? `<span class="run">Running for ${dur(a.running_seconds)}</span>` : ''}</div>
         </div>
         <div class="nums">
-          <div><small>EXP gained</small><b style="color:var(--success)">+${fmt.num(a.gained_exp)}</b></div>
-          <div><small>Live</small><b>${liveNum(a.active_matches)}</b></div>
+          <div><small>EXP gained</small><b${a.gained_exp ? ' style="color:var(--success)"' : ''}>${a.gained_exp ? '+' : ''}${fmt.num(a.gained_exp)}</b></div>
           <div><small>Matches</small><b>${fmt.num(a.matches_played)}</b></div>
         </div>
         ${levelBlock(a)}
@@ -280,37 +290,58 @@
   function accountCardHTML(a, index, s) {
     const overLimit = !s.unlimited && index >= (s.max_accounts || 0);
     let note = '';
-    if (a.status === 'PAUSED') note = !s.active ? 'Paused — renew to resume' : overLimit ? 'Paused — over plan limit' : 'Paused';
-    const idLine = a.game_id ? `ID ${a.game_id}` : (a.kind === 'guest' ? `UID ${a.login}` : `Token ${a.login}`);
+    if (a.status === 'PAUSED') note = !s.active ? 'Paused until you renew your plan' : overLimit ? 'Paused: over your plan’s account limit' : 'Paused';
     const name = a.nickname || a.login;
-    const state = { IN_MATCH: 'is-match', ONLINE: 'is-online', SEARCHING: 'is-searching', ERROR: 'is-error' }[a.status] || '';
+    const idLine = a.game_id || (a.kind === 'guest' ? `UID ${a.login}` : 'Token login');
     const added = new Date(a.created_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const pct = levelPct(a);
+
+    let title, meta;
+    if (!a.level) {
+      title = a.running ? 'Signing in to Free Fire' : 'Not running';
+      meta = a.running ? 'Stats appear after the first login.' : '';
+    } else if (a.max_level) {
+      title = 'Max level reached';
+      meta = `${fmt.num(a.current_exp)} total EXP`;
+    } else if (a.exp_to_next) {
+      title = `${fmt.num(a.exp_to_next)} EXP to level ${a.next_level}`;
+      const progress = pct !== null ? `${fmt.num(a.current_exp - a.level_start_exp)} of ${fmt.num(a.level_next_exp - a.level_start_exp)} this level` : `${fmt.num(a.current_exp)} total EXP`;
+      meta = [progress, a.running && a.eta_seconds ? `about ${dur(a.eta_seconds)}` : ''].filter(Boolean).join(' · ');
+    } else {
+      title = `Level ${a.level}`;
+      meta = `${fmt.num(a.current_exp)} total EXP`;
+    }
+
+    const stat = (label, value, cls = '') => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
     return `
-      <article class="card acc-card ${state}${a.status === 'PAUSED' ? ' locked' : ''}">
-        <div class="acc-head">
+      <article class="card acc2${a.status === 'PAUSED' ? ' locked' : ''}">
+        <header class="acc2-top">
           ${avatar(name)}
-          <div class="acc-id">
-            <div class="acc-name">${esc(a.nickname || 'Logging in…')}</div>
-            <div class="acc-sub"><span class="mono">${esc(idLine)}</span>${a.region ? `<span class="region">${esc(a.region)}</span>` : ''}</div>
+          <div class="acc2-id">
+            <div class="acc2-name">${esc(a.nickname || 'New account')}</div>
+            <div class="acc2-sub">${esc(idLine)}${a.region ? ` · ${esc(a.region)}` : ''}</div>
           </div>
-          ${statusBadge(a.status)}
+          ${statusLine(a)}
+        </header>
+        <div class="acc2-level">
+          ${levelRing(a)}
+          <div class="acc2-next">
+            <div class="t">${esc(title)}</div>
+            ${note ? `<div class="m warn">${esc(note)}</div>` : meta ? `<div class="m">${esc(meta)}</div>` : ''}
+          </div>
         </div>
-        <div class="acc-metrics four">
-          <div><span class="k">EXP gained</span><b class="gain" title="+${fmt.num(a.gained_exp)} EXP">+${fmt.compact(a.gained_exp)}</b></div>
-          <div><span class="k">Live now</span><b>${liveNum(a.active_matches)}</b></div>
-          <div><span class="k">Matches</span><b>${fmt.num(a.matches_played)}</b></div>
-          <div><span class="k">EXP / hour</span><b style="color:var(--info)">${a.exp_per_hour ? `+${fmt.compact(a.exp_per_hour)}` : '—'}</b></div>
-        </div>
-        ${levelBlock(a)}
-        <div class="acc-foot">
-          ${note
-            ? `<span class="acc-meta warn"><i class="fa-solid fa-circle-pause" aria-hidden="true"></i>${esc(note)}</span>`
-            : `<span class="acc-meta">${a.running && a.running_seconds ? `<span style="color:var(--success);font-weight:600"><i class="fa-solid fa-circle-play" aria-hidden="true"></i> Running ${dur(a.running_seconds)}</span> · ` : ''}Added ${esc(added)}</span>`}
+        <dl class="acc2-stats">
+          ${stat('EXP gained', a.gained_exp ? `+${fmt.compact(a.gained_exp)}` : '0', a.gained_exp ? 'up' : '')}
+          ${stat('Matches', fmt.num(a.matches_played))}
+          ${stat('Per hour', a.exp_per_hour ? `+${fmt.compact(a.exp_per_hour)}` : 'soon', a.exp_per_hour ? '' : 'none')}
+        </dl>
+        <footer class="acc2-foot">
+          <span>${a.running && a.running_seconds ? `Running for ${dur(a.running_seconds)} · ` : ''}Added ${esc(added)}</span>
           <div class="btns">
             <button class="btn btn-ghost btn-sm btn-icon" data-refresh="${a.id}" aria-label="Refresh stats" title="Refresh stats"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
-            <button class="btn btn-ghost btn-sm btn-icon" data-del="${a.id}" aria-label="Remove account" title="Remove account" style="color:var(--danger)"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-sm btn-icon danger-hover" data-del="${a.id}" aria-label="Remove account" title="Remove account"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
           </div>
-        </div>
+        </footer>
       </article>`;
   }
 
@@ -321,8 +352,8 @@
         <div class="row"><span>Slots used</span><b>${slots.used} / ${slots.max}</b></div>
         <div class="progress${slots.full ? ' full' : ''}"><span style="width:${slots.pct}%"></span></div>
       </div>
-      <span class="badge success"><span class="dot"></span>${d.totals.running} running</span>
-      <span class="badge ${d.totals.in_match ? 'accent live' : ''}"><span class="dot"></span>${d.totals.in_match} live match${d.totals.in_match === 1 ? '' : 'es'}</span>
+      <span class="st st-online"><i aria-hidden="true"></i>${d.totals.running} running</span>
+      <span class="st ${d.totals.in_match ? 'st-match' : 'st-off'}"><i aria-hidden="true"></i>${d.totals.in_match} live match${d.totals.in_match === 1 ? '' : 'es'}</span>
       ${s.unlimited ? '' : `<span class="faint" style="font-size:13.5px">${s.active ? `Plan ends in <b style="color:var(--text)">${fmt.remaining(remaining())}</b>` : 'No active plan'}</span>`}`;
   }
 
