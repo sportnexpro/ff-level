@@ -581,7 +581,7 @@ async def api_panel_refresh_account(request: web.Request) -> web.Response:
 
 
 BANNER_API = "https://ff.kibomodz.net/api/v1/profileboard/"
-BANNER_DEFAULT_ID, AVATAR_DEFAULT_ID = 901000001, 902000001
+BANNER_DEFAULT_ID, AVATAR_DEFAULT_ID = 100000001, 902000004  # used when the player has none set (id 0)
 BANNER_CACHE_TTL = 6 * 3600
 INFO_API = os.environ.get("INFO_API_URL", "https://infoapi.shawon.my/info")
 INFO_CACHE_TTL = 3600
