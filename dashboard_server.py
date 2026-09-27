@@ -71,7 +71,8 @@ class BotState:
             if region:
                 acc["region"] = region
             if level:
-                acc["level"] = level
+                acc["level"] = max(acc.get("level") or 0, level)  # levels never go down; reconnects may
+            exp = max(acc.get("current_exp") or 0, exp)            # re-register older cached values
             acc["current_exp"] = exp
             acc["gained_exp"] = max(0, exp - acc["initial_exp"])
             acc["likes"] = likes
@@ -85,9 +86,11 @@ class BotState:
         if uid_str in self.accounts:
             acc = self.accounts[uid_str]
             old_exp = acc["current_exp"]
+            if current_exp < old_exp:
+                return  # stale value; total EXP never decreases
             acc["current_exp"] = current_exp
             if level is not None and level > 0:
-                acc["level"] = level
+                acc["level"] = max(acc.get("level") or 0, level)
             acc["gained_exp"] = max(0, current_exp - acc["initial_exp"])
             acc["last_updated"] = time.strftime("%H:%M:%S")
             diff = current_exp - old_exp
@@ -600,18 +603,21 @@ async def fetch_cosmetics(game_id: str) -> Dict[str, int]:
     if hit and time.time() - hit[0] < INFO_CACHE_TTL:
         return hit[1]
     out: Dict[str, int] = {}
+    answered = False
     try:
         async with _http().get(INFO_API, params={"uid": game_id}, timeout=aiohttp.ClientTimeout(total=6)) as r:
             data = await r.json(content_type=None) if r.status == 200 else {}
         info = (data or {}).get("basic_info") or {}
+        answered = bool(info)
         for src, dst in (("banner_id", "banner_id"), ("head_pic", "avatar_id")):
-            if str(info.get(src, "")).isdigit() and int(info[src]) > 0:
+            if str(info.get(src, "")).isdigit() and int(info[src]) > 0:  # 0 = default banner/avatar
                 out[dst] = int(info[src])
     except Exception:
         pass
-    if out:
+    if answered:
         _info_cache[game_id] = (time.time(), out)
-        bot_state.set_cosmetics(game_id, out)  # remember it (also saved to the database)
+        if out:
+            bot_state.set_cosmetics(game_id, out)  # remember it (also saved to the database)
     else:
         _info_cache[game_id] = (time.time() - INFO_CACHE_TTL + 900, hit[1] if hit else {})  # retry in 15 min
     return _info_cache[game_id][1]
@@ -654,7 +660,9 @@ async def api_panel_banner(request: web.Request) -> web.Response:
     avatar_id = cos.get("avatar_id") or v["avatar_id"] or AVATAR_DEFAULT_ID
     # NFKC turns fancy name characters (e.g. superscript ⁷⁹⁷⁷) into plain ones the banner font can draw.
     name = unicodedata.normalize("NFKC", v["nickname"] or "Player")
-    params = {"name": name, "uid": v["game_id"], "level": str(v["level"]),
+    shown = request.query.get("lv", "")
+    level = int(shown) if shown.isdigit() and 0 < int(shown) < 1000 else v["level"]  # same level as the card
+    params = {"name": name, "uid": v["game_id"], "level": str(level),
               "banner": str(banner_id), "avatar": str(avatar_id)}
     ck = tuple(params.values())
     hit = _banner_cache.get(ck)

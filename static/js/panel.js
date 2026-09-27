@@ -317,7 +317,7 @@
       <article class="card acc2${a.status === 'PAUSED' ? ' locked' : ''}">
         ${a.level && a.game_id ? `
         <div class="acc2-banner">
-          <img src="/api/panel/banner/${a.id}?v=${a.level}-${a.banner_id || 0}-${a.avatar_id || 0}" width="513" height="110" alt="${esc(name)} · UID ${esc(a.game_id)} · level ${a.level}" onerror="this.parentNode.classList.add('failed')">
+          <img src="/api/panel/banner/${a.id}?lv=${a.level}&amp;v=${a.banner_id || 0}-${a.avatar_id || 0}" width="513" height="110" alt="${esc(name)} · UID ${esc(a.game_id)} · level ${a.level}" onerror="this.parentNode.classList.add('failed')">
           <div class="acc2-top acc2-fallback">
             ${avatar(name)}
             <div class="acc2-id"><div class="acc2-name">${esc(a.nickname || 'New account')}</div><div class="acc2-sub">${esc(idLine)}</div></div>
