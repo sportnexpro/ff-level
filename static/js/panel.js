@@ -85,6 +85,28 @@
     </div>`;
   }
 
+  // In-game profile banner (falls back to avatar + name when there is no banner).
+  function bannerHTML(a, cls = '') {
+    const name = a.nickname || a.login;
+    const fallback = `<div class="bn-fallback">${avatar(name)}<div class="acc2-id"><div class="acc2-name">${esc(a.nickname || 'New account')}</div><div class="acc2-sub">${esc(a.game_id || a.login)}</div></div></div>`;
+    if (!(a.level && a.game_id)) return `<div class="bn ${cls} failed">${fallback}</div>`;
+    return `<div class="bn ${cls}">
+      <img src="/api/panel/banner/${a.id}?lv=${a.level}&amp;v=${a.banner_id || 0}-${a.avatar_id || 0}" width="513" height="110" alt="${esc(name)} · UID ${esc(a.game_id)} · level ${a.level}" onerror="this.parentNode.classList.add('failed')">
+      ${fallback}
+    </div>`;
+  }
+
+  // Replace a container's HTML but keep already-loaded banner images (no flicker on the 4s refresh).
+  function renderKeepingImages(el, html) {
+    const old = new Map();
+    el.querySelectorAll('.bn img').forEach((img) => { if (img.complete && img.naturalWidth) old.set(img.getAttribute('src'), img); });
+    el.innerHTML = html;
+    el.querySelectorAll('.bn img').forEach((img) => {
+      const prev = old.get(img.getAttribute('src'));
+      if (prev) img.replaceWith(prev);
+    });
+  }
+
   function nameHue(name) {
     let h = 0;
     for (const c of String(name)) h = (h * 31 + c.codePointAt(0)) % 360;
@@ -232,18 +254,35 @@
         '<button class="btn btn-primary btn-sm" data-add><i class="fa-solid fa-plus" aria-hidden="true"></i>Add account</button>');
     }
     return accounts.map((a) => {
-      const name = a.nickname || a.login;
-      return `<div class="acc-item">
-        ${avatar(name)}
-        <div class="who">
-          <div class="row1"><b>${esc(a.nickname || 'Signing in…')}</b>${statusLine(a)}</div>
-          <div class="row2"><span class="mono">${esc(a.game_id || a.login)}</span>${a.running && a.running_seconds ? `<span class="run">Running for ${dur(a.running_seconds)}</span>` : ''}</div>
+      const pct = levelPct(a);
+      let head, bar, foot;
+      if (!a.level) {
+        head = `<span class="ar-lv">${a.running ? 'Signing in…' : 'Not running'}</span>`;
+        bar = 0; foot = ['Stats appear after the first login', ''];
+      } else if (a.max_level) {
+        head = `<span class="ar-lv">Level <b>${a.level}</b></span><span class="ar-pct">Max</span>`;
+        bar = 100; foot = [`${fmt.num(a.current_exp)} total EXP`, ''];
+      } else {
+        head = `<span class="ar-lv">Level <b>${a.level}</b></span>${pct !== null ? `<span class="ar-pct"><b>${Math.floor(pct)}</b>%</span>` : ''}`;
+        bar = pct || 0;
+        foot = [a.exp_to_next ? `${fmt.num(a.exp_to_next)} EXP to level ${a.next_level}` : `${fmt.num(a.current_exp)} total EXP`, etaText(a)];
+      }
+      const stat = (label, value, cls = '') => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
+      return `<div class="ar">
+        ${bannerHTML(a, 'ar-banner')}
+        <div class="ar-main">
+          <div class="ar-top">${statusLine(a)}${a.running && a.running_seconds ? `<span class="ar-run">Running for ${dur(a.running_seconds)}</span>` : ''}</div>
+          <div class="ar-level">
+            <div class="ar-level-head">${head}</div>
+            <div class="ar-bar" role="progressbar" aria-valuenow="${Math.round(bar)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to the next level"><span style="width:${bar}%"></span></div>
+            <div class="ar-level-foot"><span>${foot[0]}</span><span>${foot[1]}</span></div>
+          </div>
         </div>
-        <div class="nums">
-          <div><small>EXP gained</small><b${a.gained_exp ? ' style="color:var(--success)"' : ''}>${a.gained_exp ? '+' : ''}${fmt.num(a.gained_exp)}</b></div>
-          <div><small>Matches</small><b>${fmt.num(a.matches_played)}</b></div>
-        </div>
-        ${levelBlock(a)}
+        <dl class="ar-stats">
+          ${stat('EXP gained', a.gained_exp ? `+${fmt.compact(a.gained_exp)}` : '0', a.gained_exp ? 'up' : '')}
+          ${stat('Matches', fmt.num(a.matches_played))}
+          ${stat('Per hour', a.exp_per_hour ? `+${fmt.compact(a.exp_per_hour)}` : 'soon', a.exp_per_hour ? '' : 'none')}
+        </dl>
       </div>`;
     }).join('');
   }
@@ -274,7 +313,7 @@
         $('#plan-card').innerHTML = planCardHTML();
         $('#slots-card').innerHTML = slotsCardHTML();
         $('#stats').innerHTML = statsHTML(d.totals);
-        $('#acc-list').innerHTML = accountItemsHTML(d.accounts);
+        renderKeepingImages($('#acc-list'), accountItemsHTML(d.accounts));
         $('#feed').innerHTML = LV.feedHTML(d.logs.slice(-12), 'EXP gains and finished matches from your accounts show up here.');
       } catch (e) { toast(e.message, 'error'); }
     };
@@ -316,13 +355,7 @@
     return `
       <article class="card acc2${a.status === 'PAUSED' ? ' locked' : ''}">
         ${a.level && a.game_id ? `
-        <div class="acc2-banner">
-          <img src="/api/panel/banner/${a.id}?lv=${a.level}&amp;v=${a.banner_id || 0}-${a.avatar_id || 0}" width="513" height="110" alt="${esc(name)} · UID ${esc(a.game_id)} · level ${a.level}" onerror="this.parentNode.classList.add('failed')">
-          <div class="acc2-top acc2-fallback">
-            ${avatar(name)}
-            <div class="acc2-id"><div class="acc2-name">${esc(a.nickname || 'New account')}</div><div class="acc2-sub">${esc(idLine)}</div></div>
-          </div>
-        </div>
+        ${bannerHTML(a, 'acc2-bn')}
         <div class="acc2-under">${statusLine(a)}${a.region ? `<span class="acc2-region">${esc(a.region)} server</span>` : ''}</div>` : `
         <header class="acc2-top">
           ${avatar(name)}
@@ -377,10 +410,10 @@
         if (Shell.current !== 'accounts') return;
         const s = d.user.subscription;
         $('#summary').innerHTML = summaryHTML(d);
-        $('#acc-grid').innerHTML = d.accounts.length
+        renderKeepingImages($('#acc-grid'), d.accounts.length
           ? d.accounts.map((a, i) => accountCardHTML(a, i, s)).join('')
           : `<div class="card" style="grid-column:1/-1">${emptyState('fa-gamepad', 'No accounts yet', 'Add a guest UID + password or an access token. Each account uses one slot of your plan.',
-              '<button class="btn btn-primary btn-sm" data-add><i class="fa-solid fa-plus" aria-hidden="true"></i>Add account</button>')}</div>`;
+              '<button class="btn btn-primary btn-sm" data-add><i class="fa-solid fa-plus" aria-hidden="true"></i>Add account</button>')}</div>`);
       } catch (e) { toast(e.message, 'error'); }
     };
     $('#topbar-actions').onclick = (e) => { if (e.target.closest('[data-add]')) openAddAccount(load); };
