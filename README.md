@@ -2,6 +2,11 @@
 
 Free Fire level-up bot with a selling website: landing page, user panel (plans, account slots, live EXP and level progress) and admin panel (users, plans, orders, license keys). Data is stored in MongoDB.
 
+- **Bot + API:** Python (`Main.py`, `dashboard_server.py`, aiohttp)
+- **Website:** Angular 22 + TypeScript + Zone.js + Tailwind CSS 4, with light and dark mode (source in `frontend/`)
+
+The built website is committed in `static/app/`, so the server and Render don't need Node.js.
+
 ## Run locally
 
 ```bash
@@ -22,6 +27,19 @@ python Main.py
 
 Open http://localhost:20335 — admin panel at `/admin`, user panel at `/panel`.
 On a fresh database an admin account is created and its password is printed in the console (and saved to `ADMIN_LOGIN.txt`).
+
+## Changing the website
+
+Needs Node.js 20+.
+
+```bash
+cd frontend
+npm install
+npm start          # dev server on http://localhost:4200, API calls go to the Python server on :20335
+npm run build      # writes the production build to ../static/app
+```
+
+Commit `static/app/` after building; the Python server serves it for `/`, `/login`, `/register`, `/panel/*` and `/admin/*` (restart it to pick up a new build).
 
 ## Deploy on Render
 

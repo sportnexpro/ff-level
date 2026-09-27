@@ -6,7 +6,6 @@ Embedded Async Web Server (aiohttp)
 
 import asyncio
 import gzip
-import hashlib
 import mimetypes
 import os
 import re
@@ -155,8 +154,9 @@ db: Optional[PanelDB] = None  # connected in start_web_dashboard()
 # ==================== HELPERS ====================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+# The website is an Angular app (source in frontend/, built into static/app/ by `npm run build`).
+APP_INDEX = os.path.join(STATIC_DIR, "app", "index.html")
 SESSION_COOKIE = "lvl_session"
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,24}$")
 SYNC_INTERVAL = 15
@@ -166,37 +166,41 @@ USER_PATHS = ("/api/", "/panel", "/admin", "/login", "/register", "/logout")
 # ==================== STATIC ASSETS (in memory, gzipped, browser-cached) ====================
 
 class Assets:
-    """Serves /static from memory with gzip + long cache headers; HTML gets ?v=<hash> links."""
+    """Serves /static from memory with gzip + long cache headers."""
 
     def __init__(self):
         self.files: Dict[str, Dict[str, Any]] = {}
-        self.pages: Dict[str, str] = {}
-        self.version = "0"
+        self.index = ""
 
     def load(self):
-        digest = hashlib.sha1()
         for root, _, names in os.walk(STATIC_DIR):
             for name in sorted(names):
                 full = os.path.join(root, name)
                 rel = os.path.relpath(full, STATIC_DIR).replace(os.sep, "/")
                 with open(full, "rb") as f:
                     raw = f.read()
-                digest.update(rel.encode() + raw)
                 ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
                 text = ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "image/svg+xml")
                 self.files[rel] = {"type": ctype, "raw": raw, "gz": gzip.compress(raw, 6) if text and len(raw) > 1024 else None}
-        self.version = digest.hexdigest()[:10]
-        for name in os.listdir(TEMPLATE_DIR):
-            if name.endswith(".html"):
-                with open(os.path.join(TEMPLATE_DIR, name), "r", encoding="utf-8") as f:
-                    html = f.read()
-                self.pages[name[:-5]] = re.sub(r'(/static/[^"\'?#\s]+)', rf"\1?v={self.version}", html)
+        try:
+            with open(APP_INDEX, "r", encoding="utf-8") as f:
+                html = f.read()
+        except FileNotFoundError:
+            html = ("<!doctype html><meta charset=utf-8><title>FF Level</title>"
+                    "<p style='font-family:sans-serif;padding:40px'>The website is not built yet. "
+                    "Run <code>npm install</code> and <code>npm run build</code> in the <code>frontend</code> folder.</p>")
+        # No ?v= on the app's files: their names already carry a content hash, and a query string
+        # would make lazy chunks load a second copy of main.js.
+        self.index = html
 
     async def handle(self, request: web.Request) -> web.StreamResponse:
-        f = self.files.get(request.match_info["path"])
+        path = request.match_info["path"]
+        f = self.files.get(path)
         if not f:
             raise web.HTTPNotFound()
-        cache = "public, max-age=31536000, immutable" if request.query.get("v") else "public, max-age=300"
+        # Angular build files carry a content hash in their name, so they never change.
+        hashed = path.startswith("app/") and path != "app/index.html"
+        cache = "public, max-age=31536000, immutable" if request.query.get("v") or hashed else "public, max-age=300"
         headers = {"Cache-Control": cache, "Vary": "Accept-Encoding"}
         if f["gz"] and "gzip" in request.headers.get("Accept-Encoding", ""):
             headers["Content-Encoding"] = "gzip"
@@ -426,6 +430,7 @@ async def panel_middleware(request: web.Request, handler):
 # ==================== PAGES ====================
 
 def page(name: str):
+    """Every page is the same Angular app; the server only decides who may open which section."""
     async def handler(request: web.Request) -> web.Response:
         user = request["user"]
         if name in ("panel", "admin") and not user:
@@ -434,7 +439,7 @@ def page(name: str):
             raise web.HTTPFound("/panel")
         if name == "auth" and user:
             raise web.HTTPFound("/admin" if user["role"] == "admin" else "/panel")
-        return web.Response(text=assets.pages[name], content_type="text/html", charset="utf-8",
+        return web.Response(text=assets.index, content_type="text/html", charset="utf-8",
                             headers={"Cache-Control": "no-store"})
     return handler
 

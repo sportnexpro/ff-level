@@ -16,3 +16,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Website source build artifacts (the production build in static/app IS committed)
+frontend/node_modules/
+frontend/.angular/
