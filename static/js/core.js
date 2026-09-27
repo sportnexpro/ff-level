@@ -38,7 +38,12 @@
   }
 
   // ---------- toasts ----------
+  const recentToasts = new Map();
   function toast(message, type = 'success') {
+    // The panel polls every few seconds: show the same error at most once every 20s.
+    const key = `${type}:${message}`;
+    if (type === 'error' && Date.now() - (recentToasts.get(key) || 0) < 20000) return;
+    recentToasts.set(key, Date.now());
     let host = $('.toasts');
     if (!host) {
       host = document.createElement('div');

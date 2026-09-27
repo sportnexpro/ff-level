@@ -144,7 +144,7 @@ def _out(doc: Optional[Dict[str, Any]], key: str = "id") -> Optional[Dict[str, A
 
 class PanelDB:
     def __init__(self, uri: str, db_name: str = "fflevel"):
-        self.client = AsyncMongoClient(uri, serverSelectionTimeoutMS=10000, minPoolSize=4, appname="ff-level-panel")
+        self.client = AsyncMongoClient(uri, serverSelectionTimeoutMS=10000, connectTimeoutMS=10000, appname="ff-level-panel")
         self.db = self.client[db_name]
         self.levels: Dict[int, Dict[str, Any]] = {}
         self._bg: set = set()
@@ -208,7 +208,15 @@ class PanelDB:
             coro.close()
             return
         self._bg.add(task)
-        task.add_done_callback(self._bg.discard)
+        task.add_done_callback(self._bg_done)
+
+    def _bg_done(self, task: "asyncio.Task"):
+        self._bg.discard(task)
+        if task.cancelled():
+            return
+        err = task.exception()  # retrieve it so asyncio doesn't print "exception was never retrieved"
+        if err is not None:
+            print(f"[93m[!] Database write skipped (network issue, will catch up): {type(err).__name__}[0m")
 
     # ---------- one-time import of the old SQLite database ----------
     async def _migrate_from_sqlite(self):
