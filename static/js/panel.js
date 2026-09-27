@@ -269,7 +269,7 @@
       }
       const stat = (label, value, cls = '') => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
       return `<div class="ar">
-        ${bannerHTML(a, 'ar-banner')}
+        <div class="ar-id">${avatar(a.nickname || a.login)}<div class="acc2-id"><div class="acc2-name">${esc(a.nickname || 'New account')}</div><div class="acc2-sub">${esc(a.game_id || a.login)}${a.region ? ` · ${esc(a.region)}` : ''}</div></div></div>
         <div class="ar-main">
           <div class="ar-top">${statusLine(a)}${a.running && a.running_seconds ? `<span class="ar-run">Running for ${dur(a.running_seconds)}</span>` : ''}</div>
           <div class="ar-level">

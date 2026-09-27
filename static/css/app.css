@@ -452,9 +452,10 @@ dialog.modal.wide { width: min(700px, calc(100vw - 32px)); }
 
 /* dashboard account row — lays itself out by the list's own width (container queries) */
 .acc-items { container-type: inline-size; }
-.ar { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr) minmax(0, 270px); gap: 24px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--line); transition: background 150ms; }
+.ar { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) minmax(0, 270px); gap: 24px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--line); transition: background 150ms; }
 .ar:last-child { border-bottom: 0; }
 .ar:hover { background: rgba(255, 255, 255, 0.015); }
+.ar-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ar-main { display: grid; gap: 12px; min-width: 0; }
 .ar-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .ar-run { font-size: 12.5px; color: var(--text-3); }
@@ -475,7 +476,7 @@ dialog.modal.wide { width: min(700px, calc(100vw - 32px)); }
 .ar-stats dd.none { font-size: 14px; font-weight: 500; color: var(--text-3); }
 
 @container (max-width: 1040px) {
-  .ar { grid-template-columns: minmax(200px, 290px) minmax(0, 1fr); }
+  .ar { grid-template-columns: minmax(170px, 220px) minmax(0, 1fr); }
   .ar-stats { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var(--line); }
   .ar-stats > div:first-child { border-left: 0; padding-left: 0; }
 }
