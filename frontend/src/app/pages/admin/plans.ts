@@ -4,6 +4,7 @@ import { Api } from '../../core/api';
 import { Confirm } from '../../core/confirm';
 import { esc } from '../../core/fmt';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Empty } from '../../ui/common';
 import { Modal } from '../../ui/modal';
 import { PriceCard } from '../panel/billing';
@@ -85,11 +86,11 @@ export class PlanDialog {
 
 @Component({
   selector: 'app-admin-plans',
-  imports: [PriceCard, PlanDialog, Empty],
+  imports: [Icon, PriceCard, PlanDialog, Empty],
   template: `
     <div class="grid animate-view-in gap-6">
       <div class="flex justify-end">
-        <button type="button" class="btn btn-primary btn-sm" id="new-plan" (click)="editing.set('new')"><i class="fa-solid fa-plus" aria-hidden="true"></i>New plan</button>
+        <button type="button" class="btn btn-primary btn-sm" id="new-plan" (click)="editing.set('new')"><app-icon name="plus" [size]="16" />New plan</button>
       </div>
       <div class="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-3">
         @for (p of admin.plans(); track p.id) {
@@ -97,13 +98,13 @@ export class PlanDialog {
             <span class="absolute top-5 right-5 z-10 badge" [class.badge-ok]="p.is_active">{{ p.is_active ? 'Visible' : 'Hidden' }}</span>
             <app-price-card [plan]="p" [currency]="admin.currency()">
               <div class="flex gap-2">
-                <button type="button" class="btn btn-secondary flex-1" [attr.data-edit]="p.id" (click)="editing.set(p)"><i class="fa-solid fa-pen" aria-hidden="true"></i>Edit</button>
-                <button type="button" class="btn btn-danger btn-icon" (click)="remove(p)" [attr.aria-label]="'Delete ' + p.name"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-secondary flex-1" [attr.data-edit]="p.id" (click)="editing.set(p)"><app-icon name="pencil" [size]="16" />Edit</button>
+                <button type="button" class="btn btn-danger btn-icon" (click)="remove(p)" [attr.aria-label]="'Delete ' + p.name"><app-icon name="trash" [size]="16" /></button>
               </div>
             </app-price-card>
           </div>
         } @empty {
-          <div class="card sm:col-span-2 xl:col-span-3"><app-empty icon="fa-crown" title="No plans yet" text="Create your first plan: set its price, how long access lasts and how many accounts it allows." /></div>
+          <div class="card sm:col-span-2 xl:col-span-3"><app-empty icon="crown" title="No plans yet" text="Create your first plan: set its price, how long access lasts and how many accounts it allows." /></div>
         }
       </div>
     </div>

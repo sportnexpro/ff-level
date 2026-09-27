@@ -6,37 +6,39 @@ import { contactUrls, copyText, fmt } from '../../core/fmt';
 import { Session } from '../../core/session';
 import { Toasts } from '../../core/toast';
 import { Empty } from '../../ui/common';
+import { Icon } from '../../ui/icon';
 import { Modal } from '../../ui/modal';
 import { PanelData } from './panel-data';
 
-/** A pricing card, used on the landing page and in billing. */
+/** A pricing card, used on the landing page, in billing and in the admin plan list. */
 @Component({
   selector: 'app-price-card',
+  imports: [Icon],
   template: `
-    <article class="relative flex h-full flex-col gap-5 rounded-[20px] p-6 sm:p-7"
-      [class]="plan().is_popular ? 'grad-border shadow-[0_30px_70px_-34px_rgba(255,51,102,.55)]' : 'card'">
+    <article class="relative flex h-full flex-col rounded-3xl p-6 transition duration-300 sm:p-7"
+      [class]="plan().is_popular ? 'ember-border shadow-[0_30px_80px_-40px_rgba(255,106,26,.55)]' : 'card'">
       @if (plan().is_popular) {
-        <span class="absolute -top-3 left-6 rounded-full px-3 py-1 text-[11.5px] font-bold text-white shadow-lg"
-          style="background: linear-gradient(135deg,#ff3366,#c026d3 55%,#8b5cf6)">Most popular</span>
-      }
-      <div>
-        <div class="flex items-center gap-2 font-display text-lg font-bold">{{ plan().name }}
-          @if (current()) { <span class="badge badge-ok">Current</span> }</div>
-        <div class="mt-3 flex items-baseline gap-1.5">
-          <b class="font-display text-[40px] leading-none font-bold tracking-tight">{{ money(plan().price, currency()) }}</b>
-          <span class="text-sm text-fg-3">/ {{ duration(plan().duration_hours) }}</span>
+        <div class="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+          <div class="absolute -top-32 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-ember/20 blur-3xl"></div>
         </div>
+      }
+      <div class="relative flex items-center justify-between gap-2">
+        <span class="text-[15px] font-semibold">{{ plan().name }}</span>
+        @if (current()) { <span class="badge badge-ok">Your plan</span> }
+        @else if (plan().is_popular) { <span class="badge badge-accent"><app-icon name="flame" [size]="12" />Most popular</span> }
       </div>
-      <div class="flex flex-wrap gap-2">
-        <span class="badge badge-accent"><i class="fa-solid fa-gamepad text-[10px]" aria-hidden="true"></i>{{ plural(plan().max_accounts, 'account') }}</span>
-        <span class="badge"><i class="fa-regular fa-clock text-[10px]" aria-hidden="true"></i>{{ duration(plan().duration_hours) }}</span>
+      <div class="relative mt-5 flex items-baseline gap-1.5">
+        <b class="num text-[44px] leading-none font-semibold tracking-[-0.04em]">{{ money(plan().price, currency()) }}</b>
+        <span class="text-sm text-fg-3">/ {{ duration(plan().duration_hours) }}</span>
       </div>
-      <ul class="grid gap-2.5 text-[14px] text-fg-2">
+      <p class="relative mt-2 text-[13.5px] text-fg-3">{{ plural(plan().max_accounts, 'account') }} leveling at the same time</p>
+      <div class="relative my-6 h-px bg-line"></div>
+      <ul class="relative grid gap-3 text-[14px] text-fg-2">
         @for (f of features(); track $index) {
-          <li class="flex gap-2.5"><i class="fa-solid fa-check mt-1 text-[12px] text-ok" aria-hidden="true"></i><span>{{ f }}</span></li>
+          <li class="flex gap-3"><span class="mt-0.5 grid h-[18px] w-[18px] flex-none place-items-center rounded-full bg-ok/12 text-ok"><app-icon name="check" [size]="11" [stroke]="3" /></span><span>{{ f }}</span></li>
         }
       </ul>
-      <div class="mt-auto pt-1"><ng-content /></div>
+      <div class="relative mt-auto pt-7"><ng-content /></div>
     </article>`,
   host: { class: 'block h-full' },
 })
@@ -52,48 +54,52 @@ export class PriceCard {
 
 @Component({
   selector: 'app-buy-dialog',
-  imports: [Modal, FormsModule],
+  imports: [Modal, FormsModule, Icon],
   template: `
-    <app-modal [title]="'Buy ' + plan().name" [sub]="plural(plan().max_accounts, 'account') + ' · ' + duration(plan().duration_hours)" (closed)="closed.emit()">
-      <div class="flex items-center justify-between gap-3 rounded-xl border border-brand/25 bg-brand/[0.06] px-4 py-3.5">
-        <span class="text-sm font-semibold text-fg-2">Amount to send</span>
-        <b class="font-display text-2xl">{{ money(plan().price, session.currency()) }}</b>
+    <app-modal [title]="'Get ' + plan().name" [sub]="plural(plan().max_accounts, 'account') + ' · ' + duration(plan().duration_hours)" (closed)="closed.emit()">
+      <div class="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-4 dark:bg-white/[0.04]">
+        <span class="text-sm text-fg-2">Amount to send</span>
+        <b class="num text-[26px] leading-none font-semibold tracking-[-0.03em]">{{ money(plan().price, session.currency()) }}</b>
       </div>
-      <div class="grid gap-2.5">
-        <div class="label">1. Send the payment to</div>
-        @for (m of methods(); track $index) {
-          <div class="flex items-center gap-3 rounded-xl border border-line bg-surface-2/60 p-3 dark:bg-white/[0.02]">
-            <span class="grid h-10 w-10 flex-none place-items-center rounded-[10px] bg-surface-3 font-display text-sm font-bold">{{ m.name.slice(0, 2).toUpperCase() }}</span>
-            <div class="min-w-0 flex-1 leading-tight">
-              <b class="text-sm">{{ m.name }}</b>@if (m.type) { <span class="text-xs text-fg-3"> · {{ m.type }}</span> }
-              <div class="font-mono text-[13px] text-fg-2">{{ m.number }}</div>
+      <ol class="grid gap-5">
+        <li class="grid gap-2.5">
+          <div class="flex items-center gap-2.5 text-sm font-semibold"><span class="grid h-6 w-6 place-items-center rounded-full bg-fg text-[12px] text-bg">1</span>Send the payment to</div>
+          @for (m of methods(); track $index) {
+            <div class="flex items-center gap-3 rounded-2xl border border-line p-3">
+              <span class="grid h-10 w-10 flex-none place-items-center rounded-xl bg-ember/10 text-[13px] font-semibold text-accent">{{ m.name.slice(0, 2).toUpperCase() }}</span>
+              <div class="min-w-0 flex-1 leading-tight">
+                <b class="text-sm font-semibold">{{ m.name }}</b>@if (m.type) { <span class="text-xs text-fg-3"> · {{ m.type }}</span> }
+                <div class="mt-0.5 font-mono text-[13px] text-fg-2">{{ m.number }}</div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="copy(m.number)"><app-icon name="copy" [size]="14" /><span>Copy</span></button>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" (click)="copy(m.number)"><i class="fa-regular fa-copy" aria-hidden="true"></i>Copy</button>
-          </div>
-        } @empty {
-          <div class="flex gap-3 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
-            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i><span>No payment method is set up yet. Please contact the seller.</span>
-          </div>
-        }
-        @if (session.settings().payment_note) { <p class="text-[13px] text-fg-3">{{ session.settings().payment_note }}</p> }
-      </div>
-      <form id="order-form" class="grid gap-4" novalidate (ngSubmit)="submit()">
-        <div class="label">2. Enter your payment details</div>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="grid gap-1.5"><label class="label" for="o-method">Method</label>
-            <select class="select" id="o-method" name="method" [(ngModel)]="method">
-              @for (m of methods(); track $index) { <option [value]="m.name">{{ m.name }}</option> } @empty { <option value="Other">Other</option> }
-            </select></div>
-          <div class="grid gap-1.5"><label class="label" for="o-sender">Sender number</label>
-            <input class="input font-mono" id="o-sender" name="sender" [(ngModel)]="sender" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX"></div>
-        </div>
-        <div class="grid gap-1.5"><label class="label" for="o-trx">Transaction ID</label>
-          <input class="input font-mono uppercase" id="o-trx" name="trx_id" [(ngModel)]="trx" autocomplete="off" placeholder="BKA7X9Q2M1"></div>
-        <p class="form-error" role="alert">{{ error() }}</p>
-      </form>
+          } @empty {
+            <div class="flex gap-3 rounded-2xl border border-warn/25 bg-warn/10 p-3.5 text-sm text-warn">
+              <app-icon name="warning" [size]="17" /><span>No payment method is set up yet. Please contact the seller.</span>
+            </div>
+          }
+          @if (session.settings().payment_note) { <p class="text-[13px] text-fg-3">{{ session.settings().payment_note }}</p> }
+        </li>
+        <li class="grid gap-3">
+          <div class="flex items-center gap-2.5 text-sm font-semibold"><span class="grid h-6 w-6 place-items-center rounded-full bg-fg text-[12px] text-bg">2</span>Tell us about the payment</div>
+          <form id="order-form" class="grid gap-4" novalidate (ngSubmit)="submit()">
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="grid gap-1.5"><label class="label" for="o-method">Method</label>
+                <select class="select" id="o-method" name="method" [(ngModel)]="method">
+                  @for (m of methods(); track $index) { <option [value]="m.name">{{ m.name }}</option> } @empty { <option value="Other">Other</option> }
+                </select></div>
+              <div class="grid gap-1.5"><label class="label" for="o-sender">Sender number</label>
+                <input class="input font-mono" id="o-sender" name="sender" [(ngModel)]="sender" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX"></div>
+            </div>
+            <div class="grid gap-1.5"><label class="label" for="o-trx">Transaction ID</label>
+              <input class="input font-mono uppercase" id="o-trx" name="trx_id" [(ngModel)]="trx" autocomplete="off" placeholder="BKA7X9Q2M1"></div>
+            <p class="form-error" role="alert">{{ error() }}</p>
+          </form>
+        </li>
+      </ol>
       <div foot class="contents">
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
-        <button type="submit" form="order-form" class="btn btn-primary" [class.is-loading]="busy()" [disabled]="busy()">Submit order</button>
+        <button type="submit" form="order-form" class="btn btn-primary" [class.is-loading]="busy()" [disabled]="busy()"><span>Submit order</span></button>
       </div>
     </app-modal>`,
 })
@@ -126,7 +132,7 @@ export class BuyDialog {
     this.busy.set(true);
     try {
       await this.api.post('/api/panel/orders/create', { plan_id: this.plan().id, method: this.method, sender, trx_id: trx });
-      this.toasts.success('Order submitted! Your plan activates once the payment is verified.');
+      this.toasts.success('Order submitted — your plan activates once the payment is verified');
       this.done.emit();
       this.closed.emit();
     } catch (e: any) {
@@ -139,70 +145,66 @@ export class BuyDialog {
 
 @Component({
   selector: 'app-panel-billing',
-  imports: [PriceCard, BuyDialog, Empty, FormsModule],
+  imports: [PriceCard, BuyDialog, Empty, FormsModule, Icon],
   template: `
-    <div class="grid animate-view-in gap-6">
+    <div class="grid animate-view-in gap-8">
       @if (p.sub().active && !p.sub().unlimited) {
-        <div class="card flex flex-wrap items-center gap-3 p-4 text-sm text-fg-2 sm:px-5">
-          <i class="fa-solid fa-circle-info text-info" aria-hidden="true"></i>
-          <span>You're on <b class="text-fg">{{ p.sub().plan_name || 'a plan' }}</b> · {{ remaining() }} left. Renewing adds time on top.</span>
+        <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface-2/60 px-4 py-3 text-[13.5px] text-fg-2 dark:bg-white/[0.02]">
+          <app-icon name="info" [size]="17" class="text-info" />
+          <span>You're on <b class="font-semibold text-fg">{{ p.sub().plan_name || 'a plan' }}</b> with <b class="num font-semibold text-fg">{{ remaining() }}</b> left. Renewing adds time on top.</span>
         </div>
       }
 
-      <div id="pricing" class="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div id="pricing" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         @for (plan of session.plans(); track plan.id) {
           <app-price-card [plan]="plan" [currency]="session.currency()" [current]="isCurrent(plan)">
-            <button type="button" class="btn btn-lg w-full" [class]="plan.is_popular ? 'btn-primary' : 'btn-secondary'" [attr.data-buy]="plan.id" (click)="buying.set(plan)">
-              {{ isCurrent(plan) ? 'Renew' : 'Buy now' }}</button>
+            <button type="button" class="btn btn-lg w-full" [class]="plan.is_popular ? 'btn-brand' : 'btn-secondary'" [attr.data-buy]="plan.id" (click)="buying.set(plan)">
+              {{ isCurrent(plan) ? 'Renew ' + plan.name : 'Get ' + plan.name }}</button>
           </app-price-card>
         } @empty {
-          <div class="card sm:col-span-2 xl:col-span-3"><app-empty icon="fa-crown" title="No plans available" text="The seller hasn’t published any plans yet." /></div>
+          <div class="card sm:col-span-2 lg:col-span-3"><app-empty icon="crown" title="No plans available" text="The seller hasn’t published any plans yet." /></div>
         }
       </div>
 
-      <div class="grid gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-        <div class="card content-start">
-          <div class="card-head"><div>
-            <h3 class="card-title"><i class="fa-solid fa-key" aria-hidden="true"></i>Have a license key?</h3>
-            <div class="card-sub">Redeem it to activate your plan instantly.</div>
-          </div></div>
-          <form class="grid gap-3 p-5" novalidate (ngSubmit)="redeem()">
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+        <section class="card content-start p-5 sm:p-6">
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-ember/10 text-accent"><app-icon name="key-round" [size]="19" /></span>
+          <h3 class="mt-4 text-[17px]">Have a license key?</h3>
+          <p class="mt-1 text-[13.5px] text-fg-3">Redeem it to activate your plan instantly.</p>
+          <form class="mt-5 grid gap-3" novalidate (ngSubmit)="redeem()">
             <label class="sr-only" for="r-code">License key</label>
-            <div class="relative">
-              <i class="fa-solid fa-key pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[13px] text-fg-3" aria-hidden="true"></i>
-              <input class="input pl-10 font-mono uppercase" id="r-code" name="code" [(ngModel)]="code" placeholder="LVL-XXXX-XXXX-XXXX" autocomplete="off">
-            </div>
-            <button class="btn btn-primary" type="submit" [class.is-loading]="redeeming()" [disabled]="redeeming()">Redeem key</button>
+            <input class="input font-mono uppercase" id="r-code" name="code" [(ngModel)]="code" placeholder="LVL-XXXX-XXXX-XXXX" autocomplete="off">
+            <button class="btn btn-primary" type="submit" [class.is-loading]="redeeming()" [disabled]="redeeming()"><span>Redeem key</span></button>
             <p class="form-error" role="alert">{{ redeemError() }}</p>
           </form>
-        </div>
+        </section>
 
-        <div class="card min-w-0 overflow-hidden" id="orders-card" #ordersCard>
-          <div class="card-head flex-wrap">
-            <h3 class="card-title"><i class="fa-solid fa-receipt" aria-hidden="true"></i>Order history</h3>
+        <section class="card min-w-0 overflow-hidden" id="orders-card" #ordersCard>
+          <div class="card-head flex-wrap pb-4">
+            <div><h3 class="card-title">Orders</h3><p class="card-sub">Payments you submitted and their status</p></div>
             <div class="flex gap-2">
-              @if (contact().telegram) { <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" [href]="contact().telegram"><i class="fa-brands fa-telegram" aria-hidden="true"></i>Telegram</a> }
-              @if (contact().whatsapp) { <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" [href]="contact().whatsapp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>WhatsApp</a> }
+              @if (contact().telegram) { <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" [href]="contact().telegram"><app-icon name="telegram" [size]="14" /><span>Telegram</span></a> }
+              @if (contact().whatsapp) { <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" [href]="contact().whatsapp"><app-icon name="whatsapp" [size]="14" /><span>WhatsApp</span></a> }
             </div>
           </div>
           @if (orders() === null) {
             <div class="p-5"><div class="skeleton h-16"></div></div>
           } @else if (!orders()!.length) {
-            <p class="p-5 text-sm text-fg-3">No orders yet. Orders you place will show up here.</p>
+            <app-empty icon="receipt" title="No orders yet" text="Orders you place will show up here." />
           } @else {
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto border-t border-line">
               <table class="tbl">
                 <thead><tr><th>Plan</th><th class="num">Amount</th><th>Payment</th><th>Date</th><th>Status</th></tr></thead>
                 <tbody>
                   @for (o of orders(); track o.id) {
                     <tr>
-                      <td><b>{{ o.plan_name }}</b><div class="text-[12.5px] text-fg-3">{{ duration(o.duration_hours) }} · {{ o.max_accounts }} acc</div></td>
-                      <td class="num"><b>{{ money(o.amount, session.currency()) }}</b></td>
-                      <td>{{ o.method }}<div class="font-mono text-[12.5px] text-fg-3">{{ o.trx_id }}</div></td>
+                      <td><b class="font-semibold">{{ o.plan_name }}</b><div class="text-[12.5px] text-fg-3">{{ duration(o.duration_hours) }} · {{ o.max_accounts }} acc</div></td>
+                      <td class="num font-semibold">{{ money(o.amount, session.currency()) }}</td>
+                      <td>{{ o.method }}<div class="font-mono text-[12px] text-fg-3">{{ o.trx_id }}</div></td>
                       <td class="whitespace-nowrap text-fg-3">{{ date(o.created_at) }}</td>
                       <td>
-                        <span class="badge" [class]="badge(o.status)[0]">{{ badge(o.status)[1] }}</span>
-                        @if (o.admin_note) { <div class="mt-1 text-[12.5px] text-fg-3">{{ o.admin_note }}</div> }
+                        <span class="badge" [class]="badge(o.status)[0]"><span class="dot"></span>{{ badge(o.status)[1] }}</span>
+                        @if (o.admin_note) { <div class="mt-1 text-[12px] text-fg-3">{{ o.admin_note }}</div> }
                       </td>
                     </tr>
                   }
@@ -210,7 +212,7 @@ export class BuyDialog {
               </table>
             </div>
           }
-        </div>
+        </section>
       </div>
     </div>
     @if (buying(); as plan) { <app-buy-dialog [plan]="plan" (closed)="buying.set(null)" (done)="orderPlaced()" /> }`,

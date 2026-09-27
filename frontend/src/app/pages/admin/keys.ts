@@ -4,18 +4,19 @@ import { Api } from '../../core/api';
 import { Confirm } from '../../core/confirm';
 import { copyText, esc, fmt } from '../../core/fmt';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Empty } from '../../ui/common';
 import { AdminData, Duration, fromDuration } from './admin-data';
 
 @Component({
   selector: 'app-admin-keys',
-  imports: [FormsModule, Empty],
+  imports: [Icon, FormsModule, Empty],
   template: `
     <div class="grid animate-view-in gap-6">
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div class="card">
           <div class="card-head"><div>
-            <h3 class="card-title"><i class="fa-solid fa-key" aria-hidden="true"></i>Generate license keys</h3>
+            <h3 class="card-title"><app-icon name="key-round" [size]="16" />Generate license keys</h3>
             <div class="card-sub">Sell keys anywhere — customers redeem them in their panel.</div>
           </div></div>
           <div class="grid gap-5 p-5">
@@ -45,13 +46,13 @@ import { AdminData, Duration, fromDuration } from './admin-data';
               <div class="grid gap-1.5"><label class="label" for="k-note">Note <span class="font-normal text-fg-3">(optional)</span></label>
                 <input class="input" id="k-note" name="note" [(ngModel)]="note" placeholder="e.g. Reseller batch — Rahim"></div>
               <p class="form-error" role="alert">{{ error() }}</p>
-              <div><button class="btn btn-primary" type="submit" [class.is-loading]="busy()" [disabled]="busy()"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Generate keys</button></div>
+              <div><button class="btn btn-primary" type="submit" [class.is-loading]="busy()" [disabled]="busy()"><app-icon name="wand" [size]="16" />Generate keys</button></div>
             </form>
             @if (fresh().length) {
               <div class="grid gap-2.5 rounded-xl border border-ok/25 bg-ok/[0.06] p-4">
                 <div class="flex items-center justify-between gap-3">
                   <span class="label">{{ fresh().length }} new key(s)</span>
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="copyAll(fresh(), 'Keys copied')"><i class="fa-regular fa-copy" aria-hidden="true"></i>Copy all</button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="copyAll(fresh(), 'Keys copied')"><app-icon name="copy" [size]="16" />Copy all</button>
                 </div>
                 <textarea class="textarea font-mono text-[13px]" rows="5" readonly aria-label="Generated keys">{{ fresh().join('\n') }}</textarea>
               </div>
@@ -63,13 +64,13 @@ import { AdminData, Duration, fromDuration } from './admin-data';
           <div class="eyebrow">Inventory</div>
           @for (row of inventory(); track row[0]) {
             <div class="flex items-center gap-3">
-              <span class="grid h-9 w-9 place-items-center rounded-[10px] text-sm" [class]="row[3]"><i class="fa-solid {{ row[2] }}" aria-hidden="true"></i></span>
+              <span class="grid h-9 w-9 place-items-center rounded-[10px] text-sm" [class]="row[3]"><app-icon [name]="'' + row[2]" [size]="17" /></span>
               <span class="flex-1 text-sm text-fg-2">{{ row[0] }}</span>
               <b class="font-display text-xl">{{ row[1] }}</b>
             </div>
           }
           <div class="flex gap-3 rounded-xl border border-line bg-surface-2/60 p-3.5 text-[13px] text-fg-2 dark:bg-white/[0.02]">
-            <i class="fa-solid fa-circle-info mt-0.5 text-info" aria-hidden="true"></i>
+            <app-icon name="info" [size]="16" class="mt-0.5 text-info" />
             <span>Redeeming a key adds its time on top of the customer’s remaining time and sets their account limit.</span>
           </div>
         </div>
@@ -79,13 +80,13 @@ import { AdminData, Duration, fromDuration } from './admin-data';
         <div class="seg" role="group" aria-label="Filter keys">
           @for (f of filters; track f[0]) { <button type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button> }
         </div>
-        <button type="button" class="btn btn-secondary btn-sm ml-auto" (click)="copyUnused()"><i class="fa-regular fa-copy" aria-hidden="true"></i>Copy unused</button>
+        <button type="button" class="btn btn-secondary btn-sm ml-auto" (click)="copyUnused()"><app-icon name="copy" [size]="16" />Copy unused</button>
       </div>
       <div class="card overflow-hidden">
         @if (keys() === null) {
           <div class="p-5"><div class="skeleton h-40"></div></div>
         } @else if (!list().length) {
-          <app-empty icon="fa-key" title="No keys here" text="Generate keys above and sell them to your customers." />
+          <app-empty icon="key-round" title="No keys here" text="Generate keys above and sell them to your customers." />
         } @else {
           <div class="overflow-x-auto">
             <table class="tbl">
@@ -95,7 +96,7 @@ import { AdminData, Duration, fromDuration } from './admin-data';
                   <tr>
                     <td class="whitespace-nowrap">
                       <code class="rounded-md bg-surface-2 px-2 py-1 font-mono text-[13px] font-semibold dark:bg-white/5">{{ k.code }}</code>
-                      <button type="button" class="ml-1 inline-grid h-7 w-7 place-items-center rounded-md align-middle text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="copyAll([k.code], 'Key copied')" aria-label="Copy key"><i class="fa-regular fa-copy text-xs" aria-hidden="true"></i></button>
+                      <button type="button" class="ml-1 inline-grid h-7 w-7 place-items-center rounded-md align-middle text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="copyAll([k.code], 'Key copied')" aria-label="Copy key"><app-icon name="copy" [size]="14" /></button>
                     </td>
                     <td class="whitespace-nowrap">{{ k.plan_name }}<div class="text-[12.5px] text-fg-3">{{ duration(k.duration_hours) }} · {{ k.max_accounts }} acc</div></td>
                     <td class="text-fg-3">{{ k.note || '—' }}</td>
@@ -105,7 +106,7 @@ import { AdminData, Duration, fromDuration } from './admin-data';
                         <span class="badge badge-ok">Used</span><div class="mt-1 text-xs text-fg-3">{{ k.redeemed_username || 'deleted user' }} · {{ day(k.redeemed_at) }}</div>
                       } @else { <span class="badge badge-warn">Unused</span> }
                     </td>
-                    <td class="text-right"><button type="button" class="btn btn-ghost btn-sm btn-icon hover:bg-bad/10! hover:text-bad!" (click)="remove(k)" aria-label="Delete key"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></td>
+                    <td class="text-right"><button type="button" class="btn btn-ghost btn-sm btn-icon hover:bg-bad/10! hover:text-bad!" (click)="remove(k)" aria-label="Delete key"><app-icon name="trash" [size]="16" /></button></td>
                   </tr>
                 }
               </tbody>
@@ -143,9 +144,9 @@ export class AdminKeys {
     const all = this.keys() || [];
     const unused = all.filter((k) => !k.redeemed_at).length;
     return [
-      ['Unused keys', unused, 'fa-key', 'bg-warn/12 text-warn'],
-      ['Redeemed', all.length - unused, 'fa-circle-check', 'bg-ok/12 text-ok'],
-      ['Total generated', all.length, 'fa-layer-group', 'bg-info/12 text-info'],
+      ['Unused keys', unused, 'key-round', 'bg-warn/12 text-warn'],
+      ['Redeemed', all.length - unused, 'circle-check', 'bg-ok/12 text-ok'],
+      ['Total generated', all.length, 'layers', 'bg-info/12 text-info'],
     ];
   });
 

@@ -46,24 +46,21 @@ export class RejectDialog {
   imports: [Shell, RejectDialog],
   providers: [AdminData],
   template: `
-    <app-shell [nav]="nav" portal="Admin Panel" base="/admin" [counts]="{ orders: admin.pending() }" />
+    <app-shell [nav]="nav" portal="Admin" base="/admin" [counts]="{ orders: admin.pending() }" />
     <app-reject-dialog />`,
 })
 export class AdminLayout {
   readonly admin = inject(AdminData);
   readonly nav: NavItem[] = [
-    { section: 'Business' },
-    { id: 'overview', path: '', label: 'Overview', icon: 'fa-chart-line' },
-    { id: 'orders', label: 'Orders', icon: 'fa-inbox' },
-    { id: 'users', label: 'Users', icon: 'fa-users' },
-    { id: 'plans', label: 'Plans & pricing', icon: 'fa-crown' },
-    { id: 'keys', label: 'License keys', icon: 'fa-key' },
-    { section: 'Bot' },
-    { id: 'accounts', label: 'All accounts', icon: 'fa-gamepad' },
-    { id: 'logs', label: 'Live console', icon: 'fa-terminal' },
-    { section: 'System' },
-    { id: 'settings', label: 'Settings', icon: 'fa-gear' },
-    { id: 'panel', label: 'My user panel', icon: 'fa-arrow-up-right-from-square', href: '/panel' },
+    { id: 'overview', path: '', label: 'Overview', icon: 'chart' },
+    { id: 'orders', label: 'Orders', icon: 'inbox' },
+    { id: 'users', label: 'Users', icon: 'users' },
+    { id: 'plans', label: 'Plans', icon: 'crown' },
+    { id: 'keys', label: 'Keys', icon: 'key-round' },
+    { id: 'accounts', label: 'Accounts', icon: 'gamepad' },
+    { id: 'logs', label: 'Console', icon: 'terminal' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
+    { id: 'panel', label: 'My user panel', icon: 'external', href: '/panel', menu: true },
   ];
 
   constructor() {

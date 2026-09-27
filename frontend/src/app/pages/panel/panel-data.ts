@@ -18,6 +18,8 @@ export class PanelData {
   readonly now = signal(Date.now() / 1000);
   private offset = 0;
   readonly addOpen = signal(false);
+  /** Total EXP gained, sampled on every refresh while the panel is open (for the live chart). */
+  readonly history = signal<number[]>([]);
 
   readonly user = computed(() => this.data()?.user || this.session.user());
   readonly sub = computed(() => this.user()?.subscription || {});
@@ -44,6 +46,7 @@ export class PanelData {
       const d = await this.api.get('/api/panel/overview');
       this.offset = d.now - Date.now() / 1000;
       this.data.set(d);
+      this.history.update((h) => [...h, Number(d.totals?.gained_exp) || 0].slice(-60));
       this.session.user.set(d.user);
       return d;
     } catch (e) {

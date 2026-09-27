@@ -3,18 +3,19 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import { Session } from '../../core/session';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { ThemeToggle } from '../../ui/common';
 import { AdminData } from './admin-data';
 
 @Component({
   selector: 'app-admin-settings',
-  imports: [FormsModule, ThemeToggle],
+  imports: [Icon, FormsModule, ThemeToggle],
   template: `
     <div class="grid animate-view-in gap-6">
       <form class="grid gap-6" novalidate (ngSubmit)="save()">
         <div class="grid gap-6 lg:grid-cols-2">
           <div class="card">
-            <div class="card-head"><h3 class="card-title"><i class="fa-solid fa-palette" aria-hidden="true"></i>Branding</h3></div>
+            <div class="card-head"><h3 class="card-title"><app-icon name="palette" [size]="16" />Branding</h3></div>
             <div class="grid gap-4 p-5">
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-1.5"><label class="label" for="st-name">Site name</label><input class="input" id="st-name" name="site_name" [(ngModel)]="s.site_name"></div>
@@ -27,7 +28,7 @@ import { AdminData } from './admin-data';
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><h3 class="card-title"><i class="fa-solid fa-headset" aria-hidden="true"></i>Support & sign-ups</h3></div>
+            <div class="card-head"><h3 class="card-title"><app-icon name="headset" [size]="16" />Support & sign-ups</h3></div>
             <div class="grid gap-4 p-5">
               <div class="grid gap-1.5"><label class="label" for="st-tg">Telegram</label><input class="input" id="st-tg" name="contact_telegram" [(ngModel)]="s.contact_telegram" placeholder="@yourname or https://t.me/…"></div>
               <div class="grid gap-1.5"><label class="label" for="st-wa">WhatsApp</label><input class="input" id="st-wa" name="contact_whatsapp" [(ngModel)]="s.contact_whatsapp" placeholder="8801XXXXXXXXX"></div>
@@ -38,9 +39,9 @@ import { AdminData } from './admin-data';
 
         <div class="card">
           <div class="card-head flex-wrap">
-            <div><h3 class="card-title"><i class="fa-solid fa-wallet" aria-hidden="true"></i>Payment methods</h3>
+            <div><h3 class="card-title"><app-icon name="wallet" [size]="16" />Payment methods</h3>
               <div class="card-sub">Customers send money here and submit the Transaction ID for you to approve.</div></div>
-            <button type="button" class="btn btn-secondary btn-sm" (click)="addMethod()"><i class="fa-solid fa-plus" aria-hidden="true"></i>Add method</button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="addMethod()"><app-icon name="plus" [size]="16" />Add method</button>
           </div>
           <div class="grid gap-4 p-5">
             @for (m of methods(); track m; let i = $index) {
@@ -48,7 +49,7 @@ import { AdminData } from './admin-data';
                 <div class="grid gap-1.5"><label class="label" [for]="'pm-n' + i">Method</label><input class="input" [id]="'pm-n' + i" [name]="'pm-n' + i" [(ngModel)]="m.name" placeholder="bKash"></div>
                 <div class="col-span-2 grid gap-1.5 sm:col-span-1"><label class="label" [for]="'pm-x' + i">Number</label><input class="input font-mono" [id]="'pm-x' + i" [name]="'pm-x' + i" [(ngModel)]="m.number" placeholder="01XXXXXXXXX"></div>
                 <div class="grid gap-1.5"><label class="label" [for]="'pm-t' + i">Type</label><input class="input" [id]="'pm-t' + i" [name]="'pm-t' + i" [(ngModel)]="m.type" placeholder="Personal"></div>
-                <button type="button" class="btn btn-ghost btn-icon row-start-1 col-start-2 sm:row-auto sm:col-auto" (click)="removeMethod(i)" aria-label="Remove method"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-ghost btn-icon row-start-1 col-start-2 sm:row-auto sm:col-auto" (click)="removeMethod(i)" aria-label="Remove method"><app-icon name="x" [size]="16" /></button>
               </div>
             } @empty {
               <p class="text-sm text-fg-3">No payment methods yet.</p>
@@ -57,12 +58,12 @@ import { AdminData } from './admin-data';
               <textarea class="textarea" id="st-note" name="payment_note" rows="3" [(ngModel)]="s.payment_note"></textarea></div>
           </div>
         </div>
-        <div><button class="btn btn-primary btn-lg" type="submit" [class.is-loading]="saving()" [disabled]="saving()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Save settings</button></div>
+        <div><button class="btn btn-primary btn-lg" type="submit" [class.is-loading]="saving()" [disabled]="saving()"><app-icon name="save" [size]="16" />Save settings</button></div>
       </form>
 
       <div class="card">
         <div class="card-head"><div>
-          <h3 class="card-title"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i>Level EXP table</h3>
+          <h3 class="card-title"><app-icon name="chart" [size]="16" />Level EXP table</h3>
           <div class="card-sub">Levels 1–100 use the built-in Free Fire EXP table. Add a line here only to correct a level or add levels above 100.</div>
         </div></div>
         <form class="grid gap-4 p-5" novalidate (ngSubmit)="saveLevels()">
@@ -76,7 +77,7 @@ import { AdminData } from './admin-data';
 
       <div class="grid gap-6 lg:grid-cols-2">
         <div class="card">
-          <div class="card-head"><h3 class="card-title"><i class="fa-solid fa-lock" aria-hidden="true"></i>Your admin password</h3></div>
+          <div class="card-head"><h3 class="card-title"><app-icon name="lock" [size]="16" />Your admin password</h3></div>
           <form class="grid gap-4 p-5" novalidate (ngSubmit)="changePassword()">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="grid gap-1.5"><label class="label" for="pw-cur">Current password</label><input class="input" id="pw-cur" name="current" type="password" [(ngModel)]="pwCurrent" autocomplete="current-password"></div>
@@ -88,7 +89,7 @@ import { AdminData } from './admin-data';
         </div>
         <div class="card">
           <div class="card-head"><div>
-            <h3 class="card-title"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>Appearance</h3>
+            <h3 class="card-title"><app-icon name="sun" [size]="16" />Appearance</h3>
             <div class="card-sub">Your choice on this browser. Auto follows your device.</div>
           </div></div>
           <div class="p-5"><app-theme-toggle [full]="true" /></div>

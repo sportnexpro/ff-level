@@ -2,18 +2,19 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Api } from '../../core/api';
 import { every } from '../../core/poll';
 import { Console } from './overview';
+import { Icon } from '../../ui/icon';
 
 @Component({
   selector: 'app-admin-logs',
-  imports: [Console],
+  imports: [Icon, Console],
   template: `
     <div class="grid animate-view-in gap-5">
       <div class="seg justify-self-start" role="group" aria-label="Filter logs">
         @for (f of filters; track f[0]) { <button type="button" [attr.aria-pressed]="level() === f[0]" (click)="level.set(f[0])">{{ f[1] }}</button> }
       </div>
       <div class="card overflow-hidden">
-        <div class="card-head">
-          <h3 class="card-title"><i class="fa-solid fa-terminal" aria-hidden="true"></i>Live console</h3>
+        <div class="card-head pb-4">
+          <h3 class="card-title"><app-icon name="terminal" [size]="16" />Live console</h3>
           <span class="badge badge-ok"><span class="dot pulse"></span>Live</span>
         </div>
         <app-console [logs]="shown()" maxHeight="calc(100vh - 290px)" minHeight="320px" />

@@ -15,7 +15,7 @@ export class Theme {
     effect(() => {
       const dark = this.dark();
       document.documentElement.classList.toggle('dark', dark);
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0b16' : '#f4f4fa');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#09090b' : '#fafafa');
     });
   }
 

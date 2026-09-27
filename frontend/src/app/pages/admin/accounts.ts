@@ -6,26 +6,27 @@ import { Confirm } from '../../core/confirm';
 import { esc, fmt } from '../../core/fmt';
 import { every } from '../../core/poll';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Avatar, Empty, StatusBadge } from '../../ui/common';
 
 @Component({
   selector: 'app-admin-accounts',
-  imports: [FormsModule, RouterLink, Avatar, Empty, StatusBadge],
+  imports: [Icon, FormsModule, RouterLink, Avatar, Empty, StatusBadge],
   template: `
     <div class="grid animate-view-in gap-5">
       <div class="flex flex-wrap items-center gap-3">
         <div class="relative min-w-[220px] flex-1 sm:max-w-sm">
-          <i class="fa-solid fa-magnifying-glass pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[13px] text-fg-3" aria-hidden="true"></i>
+          <app-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-fg-3" />
           <input class="input pl-10" [(ngModel)]="q" placeholder="Search nickname, ID or owner…" aria-label="Search accounts">
         </div>
         <span class="text-[13px] text-fg-3">{{ running() }} running · {{ (accounts() || []).length }} total</span>
-        <a class="btn btn-secondary btn-sm ml-auto" routerLink="/panel/accounts"><i class="fa-solid fa-plus" aria-hidden="true"></i>Add my account</a>
+        <a class="btn btn-secondary btn-sm ml-auto" routerLink="/panel/accounts"><app-icon name="plus" [size]="16" />Add my account</a>
       </div>
       <div class="card overflow-hidden">
         @if (accounts() === null) {
           <div class="p-5"><div class="skeleton h-40"></div></div>
         } @else if (!list().length) {
-          <app-empty icon="fa-gamepad" [title]="q ? 'No matching accounts' : 'No accounts yet'" text="Accounts your customers add will show up here." />
+          <app-empty icon="gamepad" [title]="q ? 'No matching accounts' : 'No accounts yet'" text="Accounts your customers add will show up here." />
         } @else {
           <div class="overflow-x-auto">
             <table class="tbl">
@@ -46,8 +47,8 @@ import { Avatar, Empty, StatusBadge } from '../../ui/common';
                     <td class="num">{{ num(a.matches_played) }}</td>
                     <td><app-status-badge [status]="a.status" /></td>
                     <td class="text-right whitespace-nowrap">
-                      <button type="button" class="btn btn-ghost btn-sm btn-icon" (click)="refresh(a)" aria-label="Refresh stats" title="Refresh stats"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
-                      <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="remove(a)" aria-label="Remove account" title="Remove"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                      <button type="button" class="btn btn-ghost btn-sm btn-icon" (click)="refresh(a)" aria-label="Refresh stats" title="Refresh stats"><app-icon name="refresh" [size]="16" /></button>
+                      <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="remove(a)" aria-label="Remove account" title="Remove"><app-icon name="trash" [size]="16" /></button>
                     </td>
                   </tr>
                 }

@@ -4,6 +4,7 @@ import { Api } from '../../core/api';
 import { fmt } from '../../core/fmt';
 import { every } from '../../core/poll';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Avatar, Empty } from '../../ui/common';
 import { AdminData } from './admin-data';
 
@@ -47,11 +48,12 @@ export class Console implements AfterViewChecked {
 
 @Component({
   selector: 'app-kpi',
+  imports: [Icon],
   template: `
     <div class="card h-full p-5">
       <div class="flex items-start justify-between gap-3">
         <span class="text-[13px] font-semibold text-fg-3">{{ label() }}</span>
-        <span class="grid h-9 w-9 place-items-center rounded-[10px] text-sm" [class]="toneCls()"><i class="fa-solid {{ icon() }}" aria-hidden="true"></i></span>
+        <span class="grid h-9 w-9 place-items-center rounded-[10px] text-sm" [class]="toneCls()"><app-icon [name]="icon()" [size]="17" /></span>
       </div>
       <div class="mt-2 font-display text-[28px] leading-none font-bold tabular-nums">{{ value() }}@if (of() !== '') {<span class="text-base text-fg-3"> / {{ of() }}</span>}</div>
       <div class="mt-2 text-[12.5px] text-fg-3">{{ foot() }}</div>
@@ -61,7 +63,7 @@ export class Kpi {
   readonly label = input('');
   readonly value = input<string | number>('');
   readonly of = input<string | number>('');
-  readonly icon = input('fa-chart-line');
+  readonly icon = input('chart');
   readonly tone = input('');
   readonly foot = input('');
   readonly toneCls = computed(() => ({ success: 'bg-ok/12 text-ok', warning: 'bg-warn/12 text-warn', info: 'bg-info/12 text-info' } as any)[this.tone()] || 'bg-brand/12 text-accent');
@@ -69,11 +71,11 @@ export class Kpi {
 
 @Component({
   selector: 'app-admin-overview',
-  imports: [RouterLink, Kpi, Console, Avatar, Empty],
+  imports: [Icon, RouterLink, Kpi, Console, Avatar, Empty],
   template: `
     <div class="grid animate-view-in gap-5 sm:gap-6">
       <div class="flex justify-end">
-        <a class="btn btn-primary btn-sm" routerLink="/admin/keys"><i class="fa-solid fa-key" aria-hidden="true"></i>Generate keys</a>
+        <a class="btn btn-primary btn-sm" routerLink="/admin/keys"><app-icon name="key-round" [size]="16" />Generate keys</a>
       </div>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @if (!d()) {
@@ -86,8 +88,8 @@ export class Kpi {
       </div>
       <div class="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div class="card overflow-hidden">
-          <div class="card-head">
-            <div><h3 class="card-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i>Pending payments</h3>
+          <div class="card-head pb-4">
+            <div><h3 class="card-title"><app-icon name="inbox" [size]="16" />Pending payments</h3>
               <div class="card-sub">Verify the Trx ID in your wallet app, then approve</div></div>
             <a class="btn btn-secondary btn-sm" routerLink="/admin/orders">All orders</a>
           </div>
@@ -99,16 +101,16 @@ export class Kpi {
                 <div class="truncate text-[12.5px] text-fg-3">{{ o.method }} · <span class="font-mono">{{ o.trx_id }}</span> · {{ ago(o.created_at) }}</div>
               </div>
               <b class="mr-1 text-sm whitespace-nowrap">{{ money(o.amount, admin.currency()) }}</b>
-              <button type="button" class="btn btn-success btn-sm btn-icon" (click)="admin.approve(o, load)" [attr.aria-label]="'Approve order #' + o.id" title="Approve"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="admin.reject(o, load)" [attr.aria-label]="'Reject order #' + o.id" title="Reject"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-success btn-sm btn-icon" (click)="admin.approve(o, load)" [attr.aria-label]="'Approve order #' + o.id" title="Approve"><app-icon name="check" [size]="16" /></button>
+              <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="admin.reject(o, load)" [attr.aria-label]="'Reject order #' + o.id" title="Reject"><app-icon name="x" [size]="16" /></button>
             </div>
           } @empty {
-            <app-empty icon="fa-inbox" title="All caught up" text="New payment submissions will appear here for review." />
+            <app-empty icon="inbox" title="All caught up" text="New payment submissions will appear here for review." />
           }
         </div>
         <div class="card overflow-hidden">
-          <div class="card-head">
-            <h3 class="card-title"><i class="fa-solid fa-terminal" aria-hidden="true"></i>Bot console</h3>
+          <div class="card-head pb-4">
+            <h3 class="card-title"><app-icon name="terminal" [size]="16" />Bot console</h3>
             <a class="btn btn-ghost btn-sm" routerLink="/admin/logs">Open</a>
           </div>
           <app-console [logs]="logs()" maxHeight="380px" minHeight="200px" />
@@ -136,14 +138,14 @@ export class AdminOverview {
   readonly kpis = computed(() => {
     const d = this.d(), s = d.stats, t = d.totals, cur = this.admin.currency();
     return [
-      { label: 'Revenue this month', value: fmt.money(s.revenue_month, cur), icon: 'fa-sack-dollar', tone: '', foot: `${fmt.money(s.revenue_total, cur)} all time` },
-      { label: 'Active subscribers', value: s.active_users, of: s.users, icon: 'fa-users', tone: 'success', foot: 'Users with time left' },
-      { label: 'Pending orders', value: s.pending_orders, icon: 'fa-hourglass-half', tone: s.pending_orders ? 'warning' : 'info', foot: s.pending_orders ? 'Waiting for your review' : 'Nothing to review' },
-      { label: 'Running accounts', value: t.running, of: s.accounts, icon: 'fa-server', tone: 'info', foot: `${t.in_match} in match now` },
-      { label: 'EXP gained', value: `+${fmt.compact(t.gained_exp)}`, icon: 'fa-arrow-trend-up', tone: 'success', foot: 'All accounts, this session' },
-      { label: 'Matches played', value: fmt.num(t.matches), icon: 'fa-crosshairs', tone: '', foot: 'This session' },
-      { label: 'Unused keys', value: s.unused_keys, icon: 'fa-key', tone: 'warning', foot: 'Ready to sell' },
-      { label: 'Bot uptime', value: fmt.uptime(d.uptime), icon: 'fa-clock', tone: 'info', foot: 'Since last restart' },
+      { label: 'Revenue this month', value: fmt.money(s.revenue_month, cur), icon: 'wallet', tone: '', foot: `${fmt.money(s.revenue_total, cur)} all time` },
+      { label: 'Active subscribers', value: s.active_users, of: s.users, icon: 'users', tone: 'success', foot: 'Users with time left' },
+      { label: 'Pending orders', value: s.pending_orders, icon: 'hourglass', tone: s.pending_orders ? 'warning' : 'info', foot: s.pending_orders ? 'Waiting for your review' : 'Nothing to review' },
+      { label: 'Running accounts', value: t.running, of: s.accounts, icon: 'server', tone: 'info', foot: `${t.in_match} in match now` },
+      { label: 'EXP gained', value: `+${fmt.compact(t.gained_exp)}`, icon: 'trend', tone: 'success', foot: 'All accounts, this session' },
+      { label: 'Matches played', value: fmt.num(t.matches), icon: 'crosshair', tone: '', foot: 'This session' },
+      { label: 'Unused keys', value: s.unused_keys, icon: 'key-round', tone: 'warning', foot: 'Ready to sell' },
+      { label: 'Bot uptime', value: fmt.uptime(d.uptime), icon: 'clock', tone: 'info', foot: 'Since last restart' },
     ] as { label: string; value: any; of?: any; icon: string; tone: string; foot: string }[];
   });
 

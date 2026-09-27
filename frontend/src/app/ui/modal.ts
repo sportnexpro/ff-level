@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { Icon } from './icon';
 
 let seq = 0;
 
@@ -8,19 +9,18 @@ let seq = 0;
  */
 @Component({
   selector: 'app-modal',
+  imports: [Icon],
   template: `
     <dialog #dlg class="modal" [class.wide]="wide()" [attr.aria-labelledby]="tid" (close)="closed.emit()" (click)="onClick($event)">
-      <header class="flex items-start justify-between gap-4 border-b border-line px-5 pt-5 pb-4 sm:px-6">
+      <header class="flex items-start justify-between gap-4 px-6 pt-6 pb-2">
         <div class="min-w-0">
-          <h3 [id]="tid" class="text-lg leading-tight">{{ heading() }}</h3>
-          @if (sub()) { <p class="mt-1 text-[13.5px] text-fg-3">{{ sub() }}</p> }
+          <h3 [id]="tid" class="text-[19px] leading-tight">{{ heading() }}</h3>
+          @if (sub()) { <p class="mt-1.5 text-[13.5px] text-fg-3">{{ sub() }}</p> }
         </div>
-        <button class="btn btn-ghost btn-icon btn-sm -mt-1 -mr-2" type="button" (click)="close()" aria-label="Close">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
+        <button class="btn btn-ghost btn-icon btn-sm -mt-1 -mr-2" type="button" (click)="close()" aria-label="Close"><app-icon name="x" [size]="17" /></button>
       </header>
-      <div class="grid min-h-0 gap-5 overflow-y-auto px-5 py-5 sm:px-6"><ng-content /></div>
-      <footer class="flex flex-wrap items-center justify-end gap-2.5 border-t border-line bg-surface-2/60 px-5 py-4 sm:px-6">
+      <div class="grid min-h-0 gap-5 overflow-y-auto px-6 pt-3 pb-6"><ng-content /></div>
+      <footer class="flex flex-wrap items-center justify-end gap-2.5 border-t border-line bg-surface-2/50 px-6 py-4 dark:bg-white/[0.02]">
         <ng-content select="[foot]" />
       </footer>
     </dialog>`,

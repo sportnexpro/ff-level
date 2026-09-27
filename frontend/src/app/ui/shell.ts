@@ -3,89 +3,108 @@ import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterOutlet
 import { filter } from 'rxjs';
 import { Session } from '../core/session';
 import { Avatar, Brand, ThemeToggle } from './common';
+import { Icon } from './icon';
 
 export interface NavItem {
-  id?: string;
-  label?: string;
-  icon?: string;
+  id: string;
+  label: string;
+  icon: string;
   /** Path under the shell's base ('' = the base itself). Defaults to the id. */
   path?: string;
   /** Absolute link outside this shell. */
   href?: string;
-  section?: string;
+  /** Show in the account menu instead of the main navigation. */
+  menu?: boolean;
 }
 
-/** Sidebar + topbar layout shared by the user panel and the admin panel. */
+/**
+ * Top navigation layout shared by the user panel and the admin panel.
+ * Phones get an app-style bottom tab bar (or a scrolling tab strip when there are many sections).
+ */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, Brand, Avatar, ThemeToggle],
+  imports: [RouterOutlet, RouterLink, Brand, Avatar, ThemeToggle, Icon],
   template: `
-    <div class="min-h-screen lg:pl-[264px]">
-      <aside id="sidebar" aria-label="Main navigation"
-        class="fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-line bg-surface transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] lg:translate-x-0 dark:bg-[#0e0e1d]"
-        [class.-translate-x-full]="!navOpen()" [class.shadow-2xl]="navOpen()">
-        <div class="flex h-[68px] flex-none items-center px-5">
-          <a routerLink="/" class="rounded-lg"><app-brand [name]="session.settings().site_name || 'FF Level'" [tag]="portal()" /></a>
-        </div>
-        <nav class="grid gap-0.5 overflow-y-auto px-3 pt-2">
-          @for (item of nav(); track $index) {
-            @if (item.section) {
-              <div class="px-3 pt-4 pb-1.5 text-[11px] font-bold tracking-[0.1em] text-fg-3 uppercase">{{ item.section }}</div>
-            } @else {
-              <a class="nav-item" [routerLink]="link(item)" [attr.data-route]="item.id" [class.active]="activeNav() === item.id"
-                [attr.aria-current]="activeNav() === item.id ? 'page' : null" (click)="navOpen.set(false)">
-                <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i><span class="flex-1">{{ item.label }}</span>
-                @if (counts()[item.id!]) {
-                  <span class="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{{ counts()[item.id!] > 99 ? '99+' : counts()[item.id!] }}</span>
-                }
-              </a>
-            }
+    <header class="sticky top-0 z-40 border-b border-line bg-bg/75 backdrop-blur-xl backdrop-saturate-150">
+      <div class="mx-auto flex h-16 max-w-[1200px] items-center gap-3 px-4 sm:px-6">
+        <a routerLink="/" class="mr-2 rounded-lg"><app-brand [name]="site()" /></a>
+        @if (portal()) { <span class="hidden rounded-md border border-line-2 px-1.5 py-0.5 text-[11px] font-medium text-fg-3 sm:inline">{{ portal() }}</span> }
+
+        <nav class="ml-3 hidden min-w-0 items-center gap-0.5 overflow-x-auto md:flex [scrollbar-width:none]" aria-label="Main navigation">
+          @for (item of main(); track item.id) {
+            <a class="nav-item" [routerLink]="link(item)" [attr.data-route]="item.id" [class.active]="activeNav() === item.id"
+              [attr.aria-current]="activeNav() === item.id ? 'page' : null">
+              {{ item.label }}
+              @if (counts()[item.id]) { <span class="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-ember px-1 text-[10.5px] font-semibold text-[#1c0800]">{{ counts()[item.id] > 99 ? '99+' : counts()[item.id] }}</span> }
+            </a>
           }
         </nav>
-        <div class="px-3"><ng-content select="[sidebar]" /></div>
-        <div class="mt-auto grid gap-3 border-t border-line p-3">
-          <app-theme-toggle [full]="true" />
-          <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
-            <app-avatar [name]="session.user()?.username" [size]="36" />
-            <div class="min-w-0 flex-1 leading-tight">
-              <b class="block truncate text-sm">{{ session.user()?.username }}</b>
-              <span class="text-xs text-fg-3 capitalize">{{ session.user()?.role }}</span>
+
+        <div class="ml-auto flex items-center gap-1.5">
+          <ng-content select="[topbar]" />
+          <app-theme-toggle />
+          <div class="relative">
+            <button type="button" class="flex items-center gap-1.5 rounded-full p-0.5 pr-1.5 transition hover:bg-surface-2" (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()"
+              aria-haspopup="menu" [attr.aria-expanded]="menuOpen()" aria-label="Account menu">
+              <app-avatar [name]="session.user()?.username" [size]="32" [round]="true" />
+              <app-icon name="chevron-down" [size]="14" class="text-fg-3" />
+            </button>
+            <div class="absolute top-full right-0 mt-2 w-64 origin-top-right rounded-2xl border border-line-2 bg-surface p-1.5 transition duration-150"
+              style="box-shadow: var(--shadow-pop)" role="menu" [class.invisible]="!menuOpen()" [class.opacity-0]="!menuOpen()" [class.scale-95]="!menuOpen()"
+              (click)="$event.stopPropagation()">
+              <div class="flex items-center gap-3 px-2.5 py-2.5">
+                <app-avatar [name]="session.user()?.username" [size]="36" [round]="true" />
+                <div class="min-w-0 leading-tight">
+                  <b class="block truncate text-sm font-semibold">{{ session.user()?.username }}</b>
+                  <span class="text-xs text-fg-3 capitalize">{{ session.user()?.role }}</span>
+                </div>
+              </div>
+              <div class="px-1.5 pb-2"><app-theme-toggle [full]="true" /></div>
+              <div class="my-1 h-px bg-line"></div>
+              @for (item of extra(); track item.id) {
+                <a class="nav-item flex! w-full" [routerLink]="link(item)" [attr.data-route]="item.id" (click)="menuOpen.set(false)" role="menuitem">
+                  <app-icon [name]="item.icon" [size]="16" />{{ item.label }}
+                </a>
+              }
+              <a class="nav-item flex! w-full hover:text-bad!" href="/logout" role="menuitem"><app-icon name="logout" [size]="16" />Sign out</a>
             </div>
-            <a class="btn btn-ghost btn-icon btn-sm" href="/logout" aria-label="Sign out" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i></a>
           </div>
         </div>
-      </aside>
-
-      @if (navOpen()) {
-        <div class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden" (click)="navOpen.set(false)" aria-hidden="true"></div>
+      </div>
+      @if (!tabbar()) {
+        <nav class="flex gap-1 overflow-x-auto px-4 pb-2.5 md:hidden [scrollbar-width:none]" aria-label="Sections">
+          @for (item of main(); track item.id) {
+            <a class="nav-item h-8! text-[13px]!" [routerLink]="link(item)" [class.active]="activeNav() === item.id">{{ item.label }}</a>
+          }
+        </nav>
       }
+    </header>
 
-      <main class="min-w-0">
-        <header class="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-xl backdrop-saturate-150">
-          <div class="mx-auto flex h-[68px] max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-            <button type="button" class="btn btn-secondary btn-icon lg:hidden" (click)="navOpen.set(true)" aria-label="Open menu" aria-controls="sidebar" [attr.aria-expanded]="navOpen()">
-              <i class="fa-solid fa-bars" aria-hidden="true"></i>
-            </button>
-            <div class="min-w-0 flex-1">
-              <h1 id="page-title" class="truncate text-[19px] leading-tight sm:text-[22px]">{{ title() }}</h1>
-              @if (sub()) { <p id="page-sub" class="hidden truncate text-[13px] text-fg-3 sm:block">{{ sub() }}</p> }
-            </div>
-            <ng-content select="[topbar]" />
-            <app-theme-toggle />
-          </div>
-        </header>
-        @if (announcement()) {
-          <div class="mx-auto max-w-[1440px] px-4 pt-5 sm:px-6 lg:px-8" role="note">
-            <div class="flex items-center gap-3 rounded-xl border border-brand/25 bg-brand/[0.07] px-4 py-3 text-sm font-medium">
-              <i class="fa-solid fa-bullhorn text-accent" aria-hidden="true"></i><span>{{ announcement() }}</span>
-            </div>
-          </div>
-        }
-        <section class="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8" tabindex="-1">
-          <router-outlet />
-        </section>
-      </main>
-    </div>`,
+    <main class="mx-auto max-w-[1200px] px-4 pt-7 sm:px-6 sm:pt-10" [class]="tabbar() ? 'pb-28 md:pb-16' : 'pb-16'">
+      @if (announcement()) {
+        <div class="mb-6 flex items-center gap-3 rounded-2xl border border-ember/25 bg-ember/[0.06] px-4 py-3 text-sm font-medium" role="note">
+          <app-icon name="megaphone" [size]="17" class="text-accent" /><span>{{ announcement() }}</span>
+        </div>
+      }
+      <div class="mb-7 min-w-0">
+        <h1 id="page-title" class="text-[26px] leading-tight sm:text-[32px]">{{ title() }}</h1>
+        @if (sub()) { <p id="page-sub" class="mt-1.5 text-[14.5px] text-fg-3">{{ sub() }}</p> }
+      </div>
+      <router-outlet />
+    </main>
+
+    @if (tabbar()) {
+      <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden" aria-label="Sections">
+        <div class="mx-auto flex max-w-md">
+          @for (item of main(); track item.id) {
+            <a class="tabbar-item" [routerLink]="link(item)" [class.active]="activeNav() === item.id">
+              <app-icon [name]="item.icon" [size]="21" />{{ item.label }}
+            </a>
+          }
+        </div>
+      </nav>
+    }`,
+  host: { '(document:click)': 'menuOpen.set(false)', '(document:keydown.escape)': 'menuOpen.set(false)' },
 })
 export class Shell implements OnInit {
   readonly session = inject(Session);
@@ -99,15 +118,22 @@ export class Shell implements OnInit {
   /** Old /base#/<id> bookmarks: id -> new path. */
   readonly legacy = input<Record<string, string>>({});
 
-  readonly navOpen = signal(false);
+  readonly menuOpen = signal(false);
+  readonly main = computed(() => this.nav().filter((i) => !i.menu));
+  readonly extra = computed(() => this.nav().filter((i) => i.menu));
+  readonly tabbar = computed(() => this.main().length <= 5);
+  readonly site = computed(() => this.session.settings().site_name || 'FF Level');
   private data = signal<Record<string, any>>({});
   readonly activeNav = computed(() => this.data()['nav']);
-  readonly title = computed(() => String(this.data()['title'] || '').replace('{user}', this.session.user()?.username || ''));
+  readonly title = computed(() => this.fill(this.data()['title']));
   readonly sub = computed(() => this.data()['sub'] || '');
   readonly announcement = computed(() => (this.showAnnouncement() ? this.session.settings().announcement : ''));
 
   constructor() {
-    const sub = this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.readRoute());
+    const sub = this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
+      this.menuOpen.set(false);
+      this.readRoute();
+    });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }
 
@@ -131,8 +157,14 @@ export class Shell implements OnInit {
     let data: Record<string, any> = {};
     while (r) { data = { ...data, ...r.data }; r = r.firstChild; }
     this.data.set(data);
-    const site = this.session.settings().site_name || 'FF Level';
-    const t = String(data['title'] || '').replace('{user}', this.session.user()?.username || '');
-    document.title = data['nav'] === 'overview' && this.base() === '/panel' ? `Dashboard · ${site}` : `${t} · ${site}`;
+    const t = this.fill(data['title']);
+    document.title = `${data['nav'] === 'overview' && this.base() === '/panel' ? 'Dashboard' : t} · ${this.site()}`;
+  }
+
+  /** Route titles may use {user} and {greeting}. */
+  private fill(title: unknown) {
+    const h = new Date().getHours();
+    const greeting = h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    return String(title || '').replace('{greeting}', greeting).replace('{user}', this.session.user()?.username || '');
   }
 }

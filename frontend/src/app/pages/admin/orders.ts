@@ -3,12 +3,13 @@ import { Api } from '../../core/api';
 import { copyText, fmt } from '../../core/fmt';
 import { every } from '../../core/poll';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Empty } from '../../ui/common';
 import { AdminData, orderBadge } from './admin-data';
 
 @Component({
   selector: 'app-admin-orders',
-  imports: [Empty],
+  imports: [Icon, Empty],
   template: `
     <div class="grid animate-view-in gap-5">
       <div class="seg self-start justify-self-start" role="group" aria-label="Filter orders">
@@ -20,7 +21,7 @@ import { AdminData, orderBadge } from './admin-data';
         @if (orders() === null) {
           <div class="p-5"><div class="skeleton h-40"></div></div>
         } @else if (!orders()!.length) {
-          <app-empty icon="fa-inbox" [title]="status() === 'pending' ? 'No pending orders' : 'No orders here'" text="Orders customers submit from their panel appear here." />
+          <app-empty icon="inbox" [title]="status() === 'pending' ? 'No pending orders' : 'No orders here'" text="Orders customers submit from their panel appear here." />
         } @else {
           <div class="overflow-x-auto">
             <table class="tbl">
@@ -36,7 +37,7 @@ import { AdminData, orderBadge } from './admin-data';
                       {{ o.method }} <span class="font-mono text-[12.5px] text-fg-3">{{ o.sender }}</span>
                       <div class="mt-1 flex items-center gap-1">
                         <code class="rounded-md bg-surface-2 px-2 py-0.5 font-mono text-[12.5px] font-semibold dark:bg-white/5">{{ o.trx_id }}</code>
-                        <button type="button" class="grid h-7 w-7 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="copy(o.trx_id)" aria-label="Copy Trx ID"><i class="fa-regular fa-copy text-xs" aria-hidden="true"></i></button>
+                        <button type="button" class="grid h-7 w-7 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="copy(o.trx_id)" aria-label="Copy Trx ID"><app-icon name="copy" [size]="14" /></button>
                       </div>
                     </td>
                     <td class="whitespace-nowrap text-fg-3">{{ date(o.created_at) }}</td>
@@ -47,8 +48,8 @@ import { AdminData, orderBadge } from './admin-data';
                     <td class="text-right whitespace-nowrap">
                       @if (o.status === 'pending') {
                         <div class="inline-flex gap-1.5">
-                          <button type="button" class="btn btn-success btn-sm" (click)="admin.approve(o, load)"><i class="fa-solid fa-check" aria-hidden="true"></i>Approve</button>
-                          <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="admin.reject(o, load)" [attr.aria-label]="'Reject order #' + o.id"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                          <button type="button" class="btn btn-success btn-sm" (click)="admin.approve(o, load)"><app-icon name="check" [size]="16" />Approve</button>
+                          <button type="button" class="btn btn-danger btn-sm btn-icon" (click)="admin.reject(o, load)" [attr.aria-label]="'Reject order #' + o.id"><app-icon name="x" [size]="16" /></button>
                         </div>
                       }
                     </td>

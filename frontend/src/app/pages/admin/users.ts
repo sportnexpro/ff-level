@@ -5,6 +5,7 @@ import { Confirm } from '../../core/confirm';
 import { copyText, esc, fmt } from '../../core/fmt';
 import { every } from '../../core/poll';
 import { Toasts } from '../../core/toast';
+import { Icon } from '../../ui/icon';
 import { Avatar, Empty } from '../../ui/common';
 import { Modal } from '../../ui/modal';
 import { AdminData, Duration, fromDuration } from './admin-data';
@@ -20,8 +21,9 @@ const fromLocalInput = (v: string) => (v ? new Date(v).getTime() / 1000 : null);
 /** Access pill for a user row. */
 @Component({
   selector: 'app-access-badge',
+  imports: [Icon],
   template: `
-    @if (u().role === 'admin') { <span class="badge badge-accent"><i class="fa-solid fa-crown text-[10px]" aria-hidden="true"></i>Owner</span> }
+    @if (u().role === 'admin') { <span class="badge badge-accent"><app-icon name="crown" [size]="12" />Owner</span> }
     @else if (u().is_banned) { <span class="badge badge-bad"><span class="dot"></span>Suspended</span> }
     @else if (u().active) { <span class="badge badge-ok"><span class="dot"></span>{{ remaining(u().remaining) }} left</span> }
     @else if (u().expires_at) { <span class="badge badge-bad"><span class="dot"></span>Expired</span> }
@@ -34,7 +36,7 @@ export class AccessBadge {
 
 @Component({
   selector: 'app-add-user',
-  imports: [Modal, FormsModule],
+  imports: [Icon, Modal, FormsModule],
   template: `
     <app-modal title="Add user" sub="Create a customer login and optionally give access right away." (closed)="closed.emit()">
       <form id="nu-form" class="grid gap-4" novalidate (ngSubmit)="submit()">
@@ -44,7 +46,7 @@ export class AccessBadge {
           <div class="grid gap-1.5"><label class="label" for="nu-pass">Password</label>
             <div class="relative">
               <input class="input pr-12 font-mono" id="nu-pass" name="password" [(ngModel)]="password" autocomplete="off">
-              <button type="button" class="absolute top-1/2 right-1.5 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="gen()" aria-label="Generate password" title="Generate"><i class="fa-solid fa-dice" aria-hidden="true"></i></button>
+              <button type="button" class="absolute top-1/2 right-1.5 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg" (click)="gen()" aria-label="Generate password" title="Generate"><app-icon name="dice" [size]="16" /></button>
             </div></div>
         </div>
         <div class="grid gap-1.5"><label class="label" for="nu-plan">Access</label>
@@ -70,7 +72,7 @@ export class AccessBadge {
       </form>
       <div foot class="contents">
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
-        <button type="submit" form="nu-form" class="btn btn-primary" [class.is-loading]="busy()" [disabled]="busy()"><i class="fa-solid fa-user-plus" aria-hidden="true"></i>Create user</button>
+        <button type="submit" form="nu-form" class="btn btn-primary" [class.is-loading]="busy()" [disabled]="busy()"><app-icon name="user-plus" [size]="16" />Create user</button>
       </div>
     </app-modal>`,
 })
@@ -116,12 +118,12 @@ export class AddUser {
 
 @Component({
   selector: 'app-manage-user',
-  imports: [Modal, FormsModule],
+  imports: [Icon, Modal, FormsModule],
   template: `
     <app-modal [title]="u().username" [sub]="'Joined ' + day(u().created_at) + ' · last login ' + ago(u().last_login) + ' · ' + u().used + ' account(s) added'" [wide]="true" (closed)="closed.emit()">
       @if (isAdmin()) {
         <div class="flex gap-3 rounded-xl border border-brand/25 bg-brand/[0.06] p-3.5 text-sm text-fg-2">
-          <i class="fa-solid fa-crown mt-0.5 text-accent" aria-hidden="true"></i><span>Owner accounts always have unlimited access. You can only change the password here.</span>
+          <app-icon name="crown" [size]="16" class="mt-0.5 text-accent" /><span>Owner accounts always have unlimited access. You can only change the password here.</span>
         </div>
       } @else {
         <div class="grid gap-2.5">
@@ -173,8 +175,8 @@ export class AddUser {
       </form>
       @if (!isAdmin()) {
         <div class="flex flex-wrap gap-2 border-t border-line pt-5">
-          <button type="button" class="btn btn-secondary btn-sm" (click)="revoke()"><i class="fa-solid fa-ban" aria-hidden="true"></i>Revoke access now</button>
-          <button type="button" class="btn btn-danger btn-sm" (click)="remove()"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>Delete user</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="revoke()"><app-icon name="ban" [size]="16" />Revoke access now</button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="remove()"><app-icon name="trash" [size]="16" />Delete user</button>
         </div>
       }
       <div foot class="contents">
@@ -280,25 +282,25 @@ export class ManageUser {
 
 @Component({
   selector: 'app-admin-users',
-  imports: [Avatar, Empty, AccessBadge, AddUser, ManageUser, FormsModule],
+  imports: [Icon, Avatar, Empty, AccessBadge, AddUser, ManageUser, FormsModule],
   template: `
     <div class="grid animate-view-in gap-5">
       <div class="flex flex-wrap items-center gap-3">
         <div class="relative min-w-[220px] flex-1 sm:max-w-sm">
-          <i class="fa-solid fa-magnifying-glass pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[13px] text-fg-3" aria-hidden="true"></i>
+          <app-icon name="search" [size]="16" class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-fg-3" />
           <input class="input pl-10" id="u-search" [(ngModel)]="q" placeholder="Search users…" aria-label="Search users">
         </div>
         <div class="seg overflow-x-auto" role="group" aria-label="Filter users">
           @for (f of filters; track f[0]) { <button type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button> }
         </div>
-        <button type="button" class="btn btn-primary btn-sm ml-auto" id="add-user" (click)="adding.set(true)"><i class="fa-solid fa-user-plus" aria-hidden="true"></i>Add user</button>
+        <button type="button" class="btn btn-primary btn-sm ml-auto" id="add-user" (click)="adding.set(true)"><app-icon name="user-plus" [size]="16" />Add user</button>
       </div>
 
       <div class="card overflow-hidden">
         @if (users() === null) {
           <div class="p-5"><div class="skeleton h-40"></div></div>
         } @else if (!list().length) {
-          <app-empty icon="fa-users" [title]="q || filter() !== 'all' ? 'No matching users' : 'No users yet'" text="Create a user or let customers register from the website." />
+          <app-empty icon="users" [title]="q || filter() !== 'all' ? 'No matching users' : 'No users yet'" text="Create a user or let customers register from the website." />
         } @else {
           <div class="overflow-x-auto">
             <table class="tbl">
@@ -318,7 +320,7 @@ export class ManageUser {
                     <td class="whitespace-nowrap"><app-access-badge [u]="u" />
                       @if (u.expires_at && u.role !== 'admin') { <div class="mt-1 text-xs text-fg-3">{{ date(u.expires_at) }}</div> }</td>
                     <td class="whitespace-nowrap text-fg-3">{{ ago(u.last_login) }}</td>
-                    <td class="text-right"><button type="button" class="btn btn-secondary btn-sm" [attr.data-manage]="u.id" (click)="managing.set(u)"><i class="fa-solid fa-sliders" aria-hidden="true"></i>Manage</button></td>
+                    <td class="text-right"><button type="button" class="btn btn-secondary btn-sm" [attr.data-manage]="u.id" (click)="managing.set(u)"><app-icon name="sliders" [size]="16" />Manage</button></td>
                   </tr>
                 }
               </tbody>

@@ -1,0 +1,1 @@
+import{Rn as x,Rt as he,vn as rt}from"./chunk-BB5hf5bc.js";function c(a,s){let e=!1,t=()=>rt(null,null,function*(){if(!e){e=!0;try{yield s()}finally{e=!1}}});t();let i=setInterval(t,a);return x(he).onDestroy(()=>clearInterval(i)),t}export{c as t};
