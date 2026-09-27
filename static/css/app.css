@@ -3,18 +3,20 @@
    Flat, clean dark UI · single pink-red accent (top.gg inspired)
    ========================================================= */
 :root {
-  --bg: #0c0c10;
-  --bg-2: #101015;
-  --surface: #15151b;
-  --surface-solid: #15151b;
-  --surface-2: #1c1c24;
-  --surface-3: #262630;
-  --line: #23232c;
-  --line-2: #30303c;
-  --text: #f4f4f6;
-  --text-2: #aeaebd;
-  --text-3: #8a8a9e;
+  /* surfaces: near-black with an indigo tint, each step a little lighter */
+  --bg: #0b0b16;
+  --bg-2: #0e0e1c;
+  --surface: #131326;
+  --surface-solid: #131326;
+  --surface-2: #1a1a31;
+  --surface-3: #25253f;
+  --line: rgba(160, 150, 255, 0.10);
+  --line-2: rgba(160, 150, 255, 0.18);
+  --text: #f3f3fa;
+  --text-2: #b4b4ca;
+  --text-3: #8d8da8;
 
+  /* brand: rose for actions, violet for data */
   --accent: #ff3366;
   --accent-2: #ff6b8b;
   --accent-strong: #e11d48;
@@ -22,21 +24,25 @@
   --accent-soft: rgba(255, 51, 102, 0.12);
   --accent-line: rgba(255, 51, 102, 0.4);
   --on-accent: #ffffff;
-  --grad: linear-gradient(135deg, #ff3366 0%, #ff6b8b 100%);
-  --grad-text: linear-gradient(90deg, #ff3366 0%, #ff8fa8 100%);
+  --violet: #a855f7;
+  --violet-soft: rgba(168, 85, 247, 0.14);
+  --grad: linear-gradient(135deg, #ff3366 0%, #c026d3 55%, #8b5cf6 100%);
+  --grad-data: linear-gradient(90deg, #ff3366 0%, #a855f7 100%);
+  --grad-text: linear-gradient(90deg, #ff3366 0%, #c084fc 100%);
 
-  --success: #2fd07a;  --success-soft: rgba(47, 208, 122, 0.12);
-  --danger: #ff4d5e;   --danger-soft: rgba(255, 77, 94, 0.12);
-  --warning: #f5b400;  --warning-soft: rgba(245, 180, 0, 0.12);
-  --info: #3ea6ff;     --info-soft: rgba(62, 166, 255, 0.12);
+  --success: #34d399;  --success-soft: rgba(52, 211, 153, 0.12);
+  --danger: #fb5470;   --danger-soft: rgba(251, 84, 112, 0.12);
+  --warning: #fbbf24;  --warning-soft: rgba(251, 191, 36, 0.12);
+  --info: #60a5fa;     --info-soft: rgba(96, 165, 250, 0.12);
 
-  --r-xl: 18px; --r-lg: 14px; --r: 10px; --r-sm: 8px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 30px 70px -24px rgba(0, 0, 0, 0.75);
+  --r-xl: 20px; --r-lg: 16px; --r: 11px; --r-sm: 8px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 20px 40px -28px rgba(0, 0, 0, 0.8);
+  --shadow-lg: 0 30px 70px -24px rgba(0, 0, 0, 0.8);
   --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Chakra Petch', 'Plus Jakarta Sans', system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --sidebar-w: 240px;
+  --sidebar-w: 256px;
   color-scheme: dark;
 }
 
@@ -580,3 +586,123 @@ dialog.modal.wide { width: min(700px, calc(100vw - 32px)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
+
+/* =========================================================
+   Premium layer — depth, display type, brand gradients
+   ========================================================= */
+body {
+  background:
+    radial-gradient(900px 520px at 0% -10%, rgba(139, 92, 246, 0.10), transparent 60%),
+    radial-gradient(800px 480px at 100% -10%, rgba(255, 51, 102, 0.07), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* display font for headings and the numbers people look at */
+h1, h2, .topbar h1, .modal-head h3, .card-head h3, .section-title h2,
+.stat-value, .plan-name, .time-big, .slots-big, .ring-in b, .ar-lv b, .ar-pct b,
+.price-card .price b, .profile-stats b, .profile-id h2, .acc2-stats dd, .ar-stats dd,
+.brand, .locked-panel h3, .empty h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+.time-big { font-weight: 700; letter-spacing: 0; }
+.stat-value { font-weight: 700; }
+
+/* cards: faint top highlight + soft layered shadow */
+.card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0) 120px), var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+.card-head { border-bottom-color: var(--line); }
+
+/* buttons */
+.btn-primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 55%), linear-gradient(135deg, #ff3366, #e11d48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 8px 20px -10px rgba(255, 51, 102, 0.75);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 55%), linear-gradient(135deg, #ff4a78, #f0264f);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 26px -10px rgba(255, 51, 102, 0.85);
+}
+.btn-secondary { background: rgba(255, 255, 255, 0.04); border-color: var(--line-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+.btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+
+/* inputs */
+.input, .select, .textarea { background: rgba(8, 8, 18, 0.6); border-color: var(--line-2); }
+
+/* sidebar */
+.sidebar { background: linear-gradient(180deg, #0f0f20 0%, #0b0b16 100%); border-right-color: var(--line); }
+.brand-mark { background: var(--grad); box-shadow: 0 8px 20px -8px rgba(255, 51, 102, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.brand { font-weight: 700; font-size: 18px; letter-spacing: 0.01em; }
+.nav-item { position: relative; }
+.nav-item.active { background: linear-gradient(90deg, rgba(255, 51, 102, 0.14), rgba(168, 85, 247, 0.06) 70%, transparent); color: var(--text); }
+.nav-item.active::before { content: ""; position: absolute; left: -12px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--grad-data); }
+.nav-item.active i { color: var(--accent-2); }
+
+/* sidebar "Your plan" card */
+.side-plan { margin: 16px 2px 0; padding: 14px; border-radius: 14px; display: grid; gap: 8px;
+  background: radial-gradient(120% 120% at 100% 0%, rgba(168, 85, 247, 0.18), transparent 60%), radial-gradient(120% 120% at 0% 100%, rgba(255, 51, 102, 0.14), transparent 60%), #151529;
+  border: 1px solid var(--line-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.side-plan:empty { display: none; }
+.sp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sp-top .badge { height: 20px; font-size: 11px; padding: 0 7px; }
+.sp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.sp-name { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.1; }
+.sp-time { font-size: 12.5px; color: var(--text-2); margin-top: -4px; }
+.sp-meta { font-size: 12px; color: var(--text-3); }
+.side-plan .btn { margin-top: 4px; }
+
+/* topbar */
+.topbar { background: rgba(11, 11, 22, 0.78); border-bottom-color: var(--line); }
+.topbar h1 { font-size: 22px; font-weight: 700; }
+
+/* stat tiles: icon chip + display number */
+.stat { position: relative; overflow: hidden; }
+.stat-label i { width: 24px; height: 24px; border-radius: 7px; display: inline-grid; place-items: center; font-size: 11px; background: rgba(255, 255, 255, 0.05); color: var(--text-2); margin-right: 2px; }
+.stat-value.gain { color: var(--success); }
+.stat-value.rate { color: #c4b5fd; }
+.stat::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent); }
+
+/* plan card on the dashboard */
+.plan-card { background: radial-gradient(90% 140% at 100% 0%, rgba(255, 51, 102, 0.14), transparent 55%), radial-gradient(70% 120% at 0% 100%, rgba(139, 92, 246, 0.12), transparent 60%), var(--surface); }
+.plan-card::after { display: none; }
+.plan-name { font-size: 26px; font-weight: 700; }
+.time-big { font-size: 28px; background: linear-gradient(90deg, #fff, #d8ccff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.time-big.expired { background: none; color: var(--danger); }
+
+/* progress everywhere uses the rose -> violet data gradient */
+.progress > span, .lvl-bar > span { background: var(--grad-data); }
+.ar-bar > span { background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 60%), var(--grad-data); }
+.progress.full > span { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.ar-pct b { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ring-track { stroke: rgba(255, 255, 255, 0.07); }
+.ring-fill { stroke: url(#ringGrad); }  /* the class colour would otherwise override the SVG gradient */
+
+/* account row + card polish */
+.ar { transition: background 180ms; }
+.ar:hover { background: linear-gradient(90deg, rgba(255, 51, 102, 0.035), rgba(168, 85, 247, 0.03) 60%, transparent); }
+.acc2:hover { border-color: rgba(168, 85, 247, 0.3); }
+.acc-avatar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 14px -8px rgba(0, 0, 0, 0.8); }
+
+/* pricing */
+.price-card.popular { border: 1px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--grad) border-box; box-shadow: 0 30px 70px -34px rgba(255, 51, 102, 0.6); }
+.price-card .ribbon .badge { background: var(--grad); }
+
+/* tables (admin) */
+.table th { color: var(--text-3); background: rgba(255, 255, 255, 0.015); }
+.table tbody tr:hover { background: rgba(168, 85, 247, 0.04); }
+
+/* badges */
+.badge.accent { background: rgba(255, 51, 102, 0.12); color: #ff8fa8; }
+
+/* dialogs + toasts */
+dialog.modal { background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 140px), #14142a; border-color: var(--line-2); }
+.modal-foot { background: rgba(8, 8, 18, 0.5); }
+.toast { background: #1a1a31; border-color: var(--line-2); }
+
+/* profile cover in brand colours */
+.profile-cover { background: linear-gradient(120deg, #e11d48 0%, #ff3366 35%, #a855f7 100%); }
+
+@media (prefers-reduced-motion: reduce) { body { background-attachment: scroll; } }

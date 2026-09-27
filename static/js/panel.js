@@ -14,7 +14,24 @@
     S.data = data;
     S.user = data.user;
     S.offset = data.now - Date.now() / 1000;
+    paintSidePlan();
     return data;
+  }
+
+  // "Your plan" card in the sidebar.
+  function paintSidePlan() {
+    const el = document.getElementById('side-plan');
+    if (!el) return;
+    const s = sub();
+    const slots = slotInfo(s);
+    const time = s.unlimited ? 'Lifetime access' : s.active ? `${fmt.remaining(remaining())} left` : 'No active plan';
+    el.innerHTML = `
+      <div class="sp-top"><span class="sp-label">Your plan</span>${subBadge(s)}</div>
+      <div class="sp-name">${esc(s.plan_name || 'Free')}</div>
+      <div class="sp-time">${time}</div>
+      <div class="progress${slots.full ? ' full' : ''}"><span style="width:${s.unlimited ? 100 : slots.pct}%"></span></div>
+      <div class="sp-meta">${slots.used} of ${slots.max} account slots used</div>
+      ${s.unlimited ? '' : `<a class="btn btn-primary btn-sm btn-block" href="/panel/billing">${s.active ? 'Upgrade plan' : 'Get a plan'}</a>`}`;
   }
 
   // ---------- small helpers ----------
@@ -80,7 +97,7 @@
     const R = 34, C = 2 * Math.PI * R;
     const label = a.level ? `Level ${a.level}${levelPct(a) !== null ? `, ${Math.floor(pct)}% to level ${a.next_level}` : ''}` : 'Level unknown';
     return `<div class="ring" role="img" aria-label="${label}">
-      <svg viewBox="0 0 80 80" aria-hidden="true"><circle class="ring-track" cx="40" cy="40" r="${R}"/>${pct ? `<circle class="ring-fill" cx="40" cy="40" r="${R}" stroke-dasharray="${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}"/>` : ''}</svg>
+      <svg viewBox="0 0 80 80" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3366"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><circle class="ring-track" cx="40" cy="40" r="${R}"/>${pct ? `<circle class="ring-fill" cx="40" cy="40" r="${R}" stroke="url(#ringGrad)" stroke-dasharray="${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}"/>` : ''}</svg>
       <div class="ring-in"><b>${a.level ?? '–'}</b><small>level</small></div>
     </div>`;
   }
@@ -655,7 +672,8 @@
       { id: 'profile', label: 'Profile', icon: 'fa-user' },
     ];
     if (S.user.role === 'admin') nav.push({ id: 'admin', label: 'Admin panel', icon: 'fa-shield-halved', href: '/admin' });
-    Shell.mount({ settings: S.settings, user: S.user, nav, portal: 'Dashboard', base: '/panel' });
+    Shell.mount({ settings: S.settings, user: S.user, nav, portal: 'Dashboard', base: '/panel', sidebarExtra: '<div class="side-plan" id="side-plan"></div>' });
+    paintSidePlan();
     Shell.start({
       overview: { title: `Welcome back, ${S.user.username}`, sub: '', render: renderOverview },
       accounts: { title: 'Accounts', sub: '', render: renderAccounts },

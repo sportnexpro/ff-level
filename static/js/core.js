@@ -208,7 +208,7 @@
     // Clean URLs: '' -> /panel, 'accounts' -> /panel/accounts
     url(path = '') { return path ? `${this.base}/${path}` : this.base; },
 
-    mount({ settings, user, nav, portal, base }) {
+    mount({ settings, user, nav, portal, base, sidebarExtra = '' }) {
       this.base = base;
       const siteName = settings.site_name || 'FF Level';
       document.title = `${portal} · ${siteName}`;
@@ -223,6 +223,7 @@
             <a class="brand" href="/"><span class="brand-mark"><i class="fa-solid fa-fire" aria-hidden="true"></i></span>
               <span>${esc(siteName)}<small>${esc(portal)}</small></span></a>
             <nav class="nav">${navHTML}</nav>
+            ${sidebarExtra}
             <div class="sidebar-foot">
               <div class="me-card">
                 <span class="avatar ${user.role === 'admin' ? '' : 'alt'}">${initials(user.username)}</span>
