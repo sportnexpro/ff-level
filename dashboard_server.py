@@ -580,8 +580,61 @@ async def api_panel_refresh_account(request: web.Request) -> web.Response:
 BANNER_API = "https://ff.kibomodz.net/api/v1/profileboard/"
 BANNER_DEFAULT_ID, AVATAR_DEFAULT_ID = 901000001, 902000001
 BANNER_CACHE_TTL = 6 * 3600
+INFO_API = os.environ.get("INFO_API_URL", "https://infoapi.shawon.my/info")
+INFO_CACHE_TTL = 3600
 _banner_cache: Dict[tuple, Tuple[float, bytes]] = {}
+_info_cache: Dict[str, Tuple[float, Dict[str, int]]] = {}
 _banner_http: Optional[aiohttp.ClientSession] = None
+
+
+def _http() -> aiohttp.ClientSession:
+    global _banner_http
+    if _banner_http is None or _banner_http.closed:
+        _banner_http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
+    return _banner_http
+
+
+async def fetch_cosmetics(game_id: str) -> Dict[str, int]:
+    """Banner + avatar ids for a game account from the info API (cached 1h; failures retried after 5 min)."""
+    hit = _info_cache.get(game_id)
+    if hit and time.time() - hit[0] < INFO_CACHE_TTL:
+        return hit[1]
+    out: Dict[str, int] = {}
+    try:
+        async with _http().get(INFO_API, params={"uid": game_id}, timeout=aiohttp.ClientTimeout(total=6)) as r:
+            data = await r.json(content_type=None) if r.status == 200 else {}
+        info = (data or {}).get("basic_info") or {}
+        for src, dst in (("banner_id", "banner_id"), ("head_pic", "avatar_id")):
+            if str(info.get(src, "")).isdigit() and int(info[src]) > 0:
+                out[dst] = int(info[src])
+    except Exception:
+        pass
+    if out:
+        _info_cache[game_id] = (time.time(), out)
+        bot_state.set_cosmetics(game_id, out)  # remember it (also saved to the database)
+    else:
+        _info_cache[game_id] = (time.time() - INFO_CACHE_TTL + 900, hit[1] if hit else {})  # retry in 15 min
+    return _info_cache[game_id][1]
+
+
+_info_refreshing: set = set()
+
+
+def refresh_cosmetics_later(game_id: str):
+    """Refresh ids from the info API in the background (never makes a page wait)."""
+    hit = _info_cache.get(game_id)
+    if (hit and time.time() - hit[0] < INFO_CACHE_TTL) or game_id in _info_refreshing:
+        return
+
+    async def run():
+        try:
+            await fetch_cosmetics(game_id)
+        finally:
+            _info_refreshing.discard(game_id)
+
+    _info_refreshing.add(game_id)
+    bot_state.refresh_callbacks.setdefault("_bg", set()).add(task := asyncio.create_task(run()))
+    task.add_done_callback(bot_state.refresh_callbacks["_bg"].discard)
 
 
 async def api_panel_banner(request: web.Request) -> web.Response:
@@ -591,19 +644,24 @@ async def api_panel_banner(request: web.Request) -> web.Response:
     v = account_view(row)
     if not api_key or not v["level"] or not v["game_id"]:
         raise web.HTTPNotFound()
+    # Real banner/avatar from the info API; fall back to ids seen in the game's login data, then defaults.
+    if v["banner_id"] and v["avatar_id"]:
+        cos = {}  # already known: show it now, update from the info API in the background
+        refresh_cosmetics_later(v["game_id"])
+    else:
+        cos = await fetch_cosmetics(v["game_id"])
+    banner_id = cos.get("banner_id") or v["banner_id"] or BANNER_DEFAULT_ID
+    avatar_id = cos.get("avatar_id") or v["avatar_id"] or AVATAR_DEFAULT_ID
     # NFKC turns fancy name characters (e.g. superscript ⁷⁹⁷⁷) into plain ones the banner font can draw.
     name = unicodedata.normalize("NFKC", v["nickname"] or "Player")
     params = {"name": name, "uid": v["game_id"], "level": str(v["level"]),
-              "banner": str(v["banner_id"] or BANNER_DEFAULT_ID), "avatar": str(v["avatar_id"] or AVATAR_DEFAULT_ID)}
+              "banner": str(banner_id), "avatar": str(avatar_id)}
     ck = tuple(params.values())
     hit = _banner_cache.get(ck)
     body = hit[1] if hit and time.time() - hit[0] < BANNER_CACHE_TTL else None
     if body is None:
-        global _banner_http
-        if _banner_http is None or _banner_http.closed:
-            _banner_http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
         try:
-            async with _banner_http.get(BANNER_API, params={"password": api_key, **params}) as r:
+            async with _http().get(BANNER_API, params={"password": api_key, **params}) as r:
                 data = await r.read()
                 if r.status != 200 or not r.content_type.startswith("image/"):
                     raise ValueError(f"banner API returned {r.status}")
