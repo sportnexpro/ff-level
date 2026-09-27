@@ -11,7 +11,9 @@ import mimetypes
 import os
 import re
 import time
-from typing import Dict, List, Any, Optional
+import unicodedata
+from typing import Dict, List, Any, Optional, Tuple
+import aiohttp
 from aiohttp import web
 
 from panel_db import MAX_LEVEL, PanelDB, PanelError, hash_password, verify_password  # MongoDB-backed
@@ -120,6 +122,15 @@ class BotState:
                 db.observe_level(int(level or 0), int(exp or 0))
         except Exception:
             pass
+
+    def set_cosmetics(self, game_id: str, fields: Dict[str, int]):
+        """Profile banner / avatar item ids seen in the game's login data."""
+        acc = self.accounts.get(game_id)
+        changed = {k: v for k, v in fields.items() if not acc or acc.get(k) != v}
+        if acc is not None:
+            acc.update(fields)
+        if changed and db:
+            db._spawn(db.set_account_cosmetics(game_id, changed))
 
     def bind_worker(self, key: Optional[str], account_data: Dict[str, Any]):
         """Link a panel account (worker key) to the in-game account id once login succeeds."""
@@ -269,6 +280,8 @@ def account_view(row: Dict[str, Any]) -> Dict[str, Any]:
         "active_matches": (live or {}).get("active_matches", 0) if running else 0,
         "likes": (live or {}).get("likes", 0), "status": status, "running": running, "created_at": row["created_at"],
         "running_seconds": int(now - started) if running and started else 0,
+        "banner_id": (live or {}).get("banner_id") or row.get("banner_id"),
+        "avatar_id": (live or {}).get("avatar_id") or row.get("avatar_id"),
         **lp,
     }
     if "username" in row:
@@ -391,6 +404,7 @@ async def panel_middleware(request: web.Request, handler):
                     raise PanelError("Admins only", 403)
         resp = await handler(request)
         if (isinstance(resp, web.Response) and "Content-Encoding" not in resp.headers
+                and not (resp.content_type or "").startswith("image/")
                 and resp.body is not None and len(resp.body) > 1024
                 and "gzip" in request.headers.get("Accept-Encoding", "")):
             resp.enable_compression(web.ContentCoding.gzip)
@@ -561,6 +575,47 @@ async def api_panel_refresh_account(request: web.Request) -> web.Response:
     if game_id and cb:
         asyncio.create_task(cb(game_id))
     return ok()
+
+
+BANNER_API = "https://ff.kibomodz.net/api/v1/profileboard/"
+BANNER_DEFAULT_ID, AVATAR_DEFAULT_ID = 901000001, 902000001
+BANNER_CACHE_TTL = 6 * 3600
+_banner_cache: Dict[tuple, Tuple[float, bytes]] = {}
+_banner_http: Optional[aiohttp.ClientSession] = None
+
+
+async def api_panel_banner(request: web.Request) -> web.Response:
+    """In-game style profile banner for one of the user's accounts (fetched server-side so the API key stays private)."""
+    api_key = os.environ.get("BANNER_API_PASSWORD", "").strip()
+    row = await _own_account(request, request.match_info["id"])
+    v = account_view(row)
+    if not api_key or not v["level"] or not v["game_id"]:
+        raise web.HTTPNotFound()
+    # NFKC turns fancy name characters (e.g. superscript ⁷⁹⁷⁷) into plain ones the banner font can draw.
+    name = unicodedata.normalize("NFKC", v["nickname"] or "Player")
+    params = {"name": name, "uid": v["game_id"], "level": str(v["level"]),
+              "banner": str(v["banner_id"] or BANNER_DEFAULT_ID), "avatar": str(v["avatar_id"] or AVATAR_DEFAULT_ID)}
+    ck = tuple(params.values())
+    hit = _banner_cache.get(ck)
+    body = hit[1] if hit and time.time() - hit[0] < BANNER_CACHE_TTL else None
+    if body is None:
+        global _banner_http
+        if _banner_http is None or _banner_http.closed:
+            _banner_http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
+        try:
+            async with _banner_http.get(BANNER_API, params={"password": api_key, **params}) as r:
+                data = await r.read()
+                if r.status != 200 or not r.content_type.startswith("image/"):
+                    raise ValueError(f"banner API returned {r.status}")
+            body = data
+            if len(_banner_cache) > 300:
+                _banner_cache.clear()
+            _banner_cache[ck] = (time.time(), body)
+        except Exception:
+            if not hit:
+                raise web.HTTPBadGateway()
+            body = hit[1]  # serve the older banner if the API is down
+    return web.Response(body=body, content_type="image/webp", headers={"Cache-Control": "private, max-age=3600"})
 
 
 async def api_panel_orders(request: web.Request) -> web.Response:
@@ -856,6 +911,7 @@ async def start_web_dashboard(host: str = "0.0.0.0", port: int = 5000,
     r.add_post("/api/panel/accounts/add", api_panel_add_account)
     r.add_post("/api/panel/accounts/delete", api_panel_delete_account)
     r.add_post("/api/panel/accounts/refresh", api_panel_refresh_account)
+    r.add_get("/api/panel/banner/{id}", api_panel_banner)
     r.add_get("/api/panel/orders", api_panel_orders)
     r.add_post("/api/panel/orders/create", api_panel_create_order)
     r.add_post("/api/panel/redeem", api_panel_redeem)

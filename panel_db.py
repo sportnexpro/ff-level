@@ -542,6 +542,11 @@ class PanelDB:
             sets["nickname"] = nickname
         await self.db.accounts.update_one({"_id": account_id}, {"$set": sets})
 
+    async def set_account_cosmetics(self, game_id: str, fields: Dict[str, int]):
+        sets = {k: int(v) for k, v in fields.items() if k in ("banner_id", "avatar_id")}
+        if sets:
+            await self.db.accounts.update_many({"game_id": game_id}, {"$set": sets})
+
     async def runnable_accounts(self) -> List[Dict[str, Any]]:
         """Accounts whose owner has access, capped at the owner's slot limit (oldest first)."""
         now = time.time()

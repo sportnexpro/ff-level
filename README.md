@@ -13,6 +13,7 @@ Create a `.env` file next to `Main.py`:
 ```
 MONGO_URI=mongodb+srv://USER:PASSWORD@your-cluster.mongodb.net/
 MONGO_DB=fflevel
+BANNER_API_PASSWORD=your-profileboard-api-key   # optional: in-game profile banners
 ```
 
 ```bash

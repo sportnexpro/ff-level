@@ -315,6 +315,15 @@
     const stat = (label, value, cls = '') => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
     return `
       <article class="card acc2${a.status === 'PAUSED' ? ' locked' : ''}">
+        ${a.level && a.game_id ? `
+        <div class="acc2-banner">
+          <img src="/api/panel/banner/${a.id}?v=${a.level}-${a.banner_id || 0}-${a.avatar_id || 0}" width="513" height="110" alt="${esc(name)} · UID ${esc(a.game_id)} · level ${a.level}" onerror="this.parentNode.classList.add('failed')">
+          <div class="acc2-top acc2-fallback">
+            ${avatar(name)}
+            <div class="acc2-id"><div class="acc2-name">${esc(a.nickname || 'New account')}</div><div class="acc2-sub">${esc(idLine)}</div></div>
+          </div>
+        </div>
+        <div class="acc2-under">${statusLine(a)}${a.region ? `<span class="acc2-region">${esc(a.region)} server</span>` : ''}</div>` : `
         <header class="acc2-top">
           ${avatar(name)}
           <div class="acc2-id">
@@ -322,7 +331,7 @@
             <div class="acc2-sub">${esc(idLine)}${a.region ? ` · ${esc(a.region)}` : ''}</div>
           </div>
           ${statusLine(a)}
-        </header>
+        </header>`}
         <div class="acc2-level">
           ${levelRing(a)}
           <div class="acc2-next">

@@ -371,6 +371,41 @@ def get_proto_field(d, key, default=None):
     return default
 
 
+def _find_cosmetics(dict_res) -> Dict[str, int]:
+    """Find the player's banner (901xxxxxx) and avatar (902xxxxxx) item ids in a parsed GetLoginData
+    response. Searches breadth-first so the profile's own top-level fields win over nested lists."""
+    found: Dict[str, int] = {}
+    queue = [dict_res]
+    while queue and len(found) < 2:
+        nxt = []
+        for node in queue:
+            if not isinstance(node, dict):
+                continue
+            if node.get("wire_type") == "varint" and isinstance(node.get("data"), int):
+                v = node["data"]
+                if 901000000 <= v <= 901999999:
+                    found.setdefault("banner_id", v)
+                elif 902000000 <= v <= 902999999:
+                    found.setdefault("avatar_id", v)
+                continue
+            for child in node.values():
+                if isinstance(child, dict):
+                    nxt.append(child)
+                elif isinstance(child, list):
+                    nxt.extend(c for c in child if isinstance(c, dict))
+        queue = nxt
+    return found
+
+
+def _publish_cosmetics(acc_id, dict_res):
+    try:
+        found = _find_cosmetics(dict_res)
+        if found:
+            bot_state.set_cosmetics(str(acc_id), found)
+    except Exception:
+        pass
+
+
 # ==================== PER-ACCOUNT MATCH COUNTER ====================
 _match_counters: Dict[str, int] = {}
 _match_counter_lock = asyncio.Lock()
@@ -1785,6 +1820,7 @@ async def refresh_account_profile(account_data_or_uid: Any):
             nickname = res_proto.nickname or get_proto_field(dict_res, 4, "")
 
             acc_id = str(account_data['account_id'])
+            _publish_cosmetics(acc_id, dict_res)
             if exp > 0:
                 bot_state.update_exp(acc_id, exp, level)
             if likes > 0 and acc_id in bot_state.accounts:
@@ -1844,6 +1880,7 @@ async def process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         region = majorlogin_response.region or get_proto_field(dict_res, 3, "BD")
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region, level=level, exp=exp, likes=likes)
+        _publish_cosmetics(acc_id, dict_res)
 
         account_data = {
             'account_id': majorlogin_response.account_id,
@@ -1951,6 +1988,7 @@ async def process_account_token(access_token: str) -> Optional[Dict]:
         region = majorlogin_response.region or get_proto_field(dict_res, 3, "BD")
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region, level=level, exp=exp, likes=likes)
+        _publish_cosmetics(acc_id, dict_res)
 
         account_data = {
             'account_id': majorlogin_response.account_id,

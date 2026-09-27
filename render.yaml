@@ -13,3 +13,5 @@ services:
         sync: false
       - key: MONGO_DB
         value: fflevel
+      - key: BANNER_API_PASSWORD   # profile banner API key (ff.kibomodz.net) — set it in the dashboard
+        sync: false
