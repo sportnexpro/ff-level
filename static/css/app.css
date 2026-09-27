@@ -381,6 +381,15 @@ dialog.modal.wide { width: min(700px, calc(100vw - 32px)); }
 .dash { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
 .dash-main, .dash-side { display: grid; gap: 20px; min-width: 0; align-content: start; }
 .stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stats.five { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.live-num { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.live-num.on { color: var(--accent-2); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.6); animation: liveRing 1.6s ease-out infinite; flex: none; }
+@keyframes liveRing { 0% { box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.6); } 100% { box-shadow: 0 0 0 7px rgba(255, 51, 102, 0); } }
+.acc-metrics.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.acc-metrics.four > div + div { border-left: 0; }
+.acc-metrics.four > div:nth-child(even) { border-left: 1px solid var(--line); }
+.acc-metrics.four > div:nth-child(n+3) { border-top: 1px solid var(--line); }
 .stat-value.rate { color: var(--info); }
 
 /* level progress */
@@ -473,6 +482,7 @@ dialog.modal.wide { width: min(700px, calc(100vw - 32px)); }
 @media (max-width: 560px) {
   .stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .stats.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stats.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats.three .stat { padding: 14px; }
   .stats.three .stat-value { font-size: 19px; }
   .stats.three .stat-label i { display: none; }

@@ -197,10 +197,15 @@
       <div><button class="btn btn-secondary btn-sm" data-add><i class="fa-solid fa-plus" aria-hidden="true"></i>Add account</button></div>`;
   }
 
+  function liveNum(n) {
+    return `<span class="live-num${n ? ' on' : ''}">${n ? '<span class="live-dot" aria-hidden="true"></span>' : ''}${fmt.num(n)}</span>`;
+  }
+
   function statsHTML(t) {
     return [
       ['EXP gained', `+${fmt.num(t.gained_exp)}`, 'fa-arrow-trend-up', 'gain'],
       ['EXP per hour', t.exp_per_hour ? `+${fmt.num(t.exp_per_hour)}` : '—', 'fa-gauge-high', 'rate'],
+      ['Live matches', liveNum(t.in_match), 'fa-tower-broadcast', ''],
       ['Matches played', fmt.num(t.matches), 'fa-crosshairs', ''],
       ['Highest level', t.top_level || '—', 'fa-trophy', ''],
     ].map(([label, value, icon, cls]) => `
@@ -225,6 +230,7 @@
         </div>
         <div class="nums">
           <div><small>EXP gained</small><b style="color:var(--success)">+${fmt.num(a.gained_exp)}</b></div>
+          <div><small>Live</small><b>${liveNum(a.active_matches)}</b></div>
           <div><small>Matches</small><b>${fmt.num(a.matches_played)}</b></div>
         </div>
         ${levelBlock(a)}
@@ -237,7 +243,7 @@
       <div class="dash">
         <div class="dash-main">
           <div class="card plan-card" id="plan-card"><div class="skeleton" style="height:92px;grid-column:1/-1"></div></div>
-          <div class="stats four" id="stats">${'<div class="card stat"><div class="skeleton" style="height:56px"></div></div>'.repeat(4)}</div>
+          <div class="stats five" id="stats">${'<div class="card stat"><div class="skeleton" style="height:56px"></div></div>'.repeat(5)}</div>
           <div class="card">
             <div class="card-head"><h3><i class="fa-solid fa-gamepad" aria-hidden="true"></i>Your accounts</h3><a class="btn btn-ghost btn-sm" href="/panel/accounts">Manage <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a></div>
             <div class="acc-items" id="acc-list"></div>
@@ -289,8 +295,9 @@
           </div>
           ${statusBadge(a.status)}
         </div>
-        <div class="acc-metrics">
+        <div class="acc-metrics four">
           <div><span class="k">EXP gained</span><b class="gain" title="+${fmt.num(a.gained_exp)} EXP">+${fmt.compact(a.gained_exp)}</b></div>
+          <div><span class="k">Live now</span><b>${liveNum(a.active_matches)}</b></div>
           <div><span class="k">Matches</span><b>${fmt.num(a.matches_played)}</b></div>
           <div><span class="k">EXP / hour</span><b style="color:var(--info)">${a.exp_per_hour ? `+${fmt.compact(a.exp_per_hour)}` : '—'}</b></div>
         </div>
@@ -315,6 +322,7 @@
         <div class="progress${slots.full ? ' full' : ''}"><span style="width:${slots.pct}%"></span></div>
       </div>
       <span class="badge success"><span class="dot"></span>${d.totals.running} running</span>
+      <span class="badge ${d.totals.in_match ? 'accent live' : ''}"><span class="dot"></span>${d.totals.in_match} live match${d.totals.in_match === 1 ? '' : 'es'}</span>
       ${s.unlimited ? '' : `<span class="faint" style="font-size:13.5px">${s.active ? `Plan ends in <b style="color:var(--text)">${fmt.remaining(remaining())}</b>` : 'No active plan'}</span>`}`;
   }
 

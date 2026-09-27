@@ -348,13 +348,14 @@
     const paint = () => {
       const list = accounts.filter((a) => !q || `${a.nickname} ${a.game_id} ${a.login} ${a.owner}`.toLowerCase().includes(q));
       $('#a-count').textContent = `${accounts.filter((a) => a.running).length} running · ${accounts.length} total`;
-      $('#a-table').innerHTML = list.length ? `<table class="table"><thead><tr><th>Account</th><th>Owner</th><th>Login</th><th class="num">Level</th><th class="num">EXP gained</th><th class="num">Matches</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead><tbody>${
+      $('#a-table').innerHTML = list.length ? `<table class="table"><thead><tr><th>Account</th><th>Owner</th><th>Login</th><th class="num">Level</th><th class="num">EXP gained</th><th class="num">Live</th><th class="num">Matches</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead><tbody>${
         list.map((a) => `<tr>
           <td><div class="user-cell"><span class="avatar alt">${initials(a.nickname || a.login)}</span><div style="min-width:0"><div class="name">${esc(a.nickname || 'Logging in…')}</div><div class="meta mono">${esc(a.game_id || '—')}${a.region ? ` · ${esc(a.region)}` : ''}</div></div></div></td>
           <td>${esc(a.owner)}</td>
           <td><span class="faint">${a.kind === 'guest' ? 'Guest' : 'Token'}</span> <span class="mono" style="font-size:12.5px">${esc(a.login)}</span></td>
           <td class="num">${a.level ?? '—'}</td>
           <td class="num" style="color:var(--success)">+${fmt.num(a.gained_exp)}</td>
+          <td class="num">${a.active_matches ? `<b style="color:var(--accent-2)">${a.active_matches}</b>` : '<span class="faint">0</span>'}</td>
           <td class="num">${fmt.num(a.matches_played)}</td>
           <td>${statusBadge(a.status)}</td>
           <td class="actions">
